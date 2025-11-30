@@ -1,0 +1,11 @@
+id,char,level,element,readings_on,readings_kun,meanings,strokes,tags,stage,is_boss
+n5_fire_hi,火,N5,FIRE,KA,hi,fire,4,basic|nature,1,false
+n5_water_mizu,水,N5,AQUA,SUI,mizu,water,4,basic|nature,1,false
+n5_tree_ki,木,N5,NATURE,MOKU|BOKU,ki,tree|wood,4,basic|nature,1,false
+n5_gold_kin,金,N5,METAL,KIN|KON,kane,gold|money,8,basic|wealth,2,false
+n5_earth_tsuchi,土,N5,METAL,DO|TO,tsuchi,earth|soil,3,basic|nature,2,false
+n5_sun_hi,日,N5,LIGHT,NICHI|JITSU,hi|ka,sun|day,4,basic|time,3,false
+n5_moon_tsuki,月,N5,LIGHT,GETSU|GATSU,tsuki,moon|month,4,basic|time,3,false
+n5_person_hito,人,N5,LIFE,JIN|NIN,hito,person,2,basic,4,false
+n5_time_toki,時,N5,CHRONO,JI,toki,time,10,basic|time,4,false
+n5_learn_manabu,学,N5,MAGIC,GAKU,manabu,study|learn,8,education,5,true

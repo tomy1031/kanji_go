@@ -1,0 +1,11 @@
+stage_id,enemy_id
+1,slime_fire
+2,slime_water
+3,slime_nature
+4,wolf_fire
+5,wolf_water
+6,wolf_nature
+7,boss_fire
+8,boss_water
+9,boss_nature
+10,dragon_fire
