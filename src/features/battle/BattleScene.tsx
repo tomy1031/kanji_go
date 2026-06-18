@@ -6,6 +6,7 @@ import { useUserStore } from "../../store/userStore";
 import { useSound } from "../../hooks/useSound";
 import { MONSTER_DB, getMonsterStats } from "../../lib/evolutionUtils";
 import { ENEMY_DB, getEnemyForStage } from "../../lib/enemyUtils";
+import { EXP_TABLE, getExpForNextLevel } from "../../lib/levelUtils";
 import { getKanjiForStage } from "../../lib/kanjiUtils";
 import { calculateNextReview } from "../../lib/srsAlgorithm";
 import { type KanjiData } from "../../types";
@@ -75,8 +76,10 @@ const BattleScene: React.FC<BattleSceneProps> = ({ onComplete }) => {
   const maxPlayerHp = playerStats.hp;
   const playerAttack = playerStats.attack;
 
-  // Enemy Stats (Scaled to Player Level for challenge, or fixed?)
-  const enemyStats = getMonsterStats(currentEnemy.id, stats.playerLevel);
+  // Enemy Stats: fixed per-stage values from enemy_data.csv (single source of
+  // truth). Enemies no longer scale to player level, so the difficulty curve is
+  // authored per stage and stays smooth as the player levels/evolves.
+  const enemyStats = { hp: currentEnemy.hp, attack: currentEnemy.attack };
   const maxEnemyHp = enemyStats.hp;
 
   const stageId = currentStageId || 1;
@@ -119,8 +122,8 @@ const BattleScene: React.FC<BattleSceneProps> = ({ onComplete }) => {
     console.log("BattleScene: Selected Enemy:", enemy);
     console.log("BattleScene: Enemy Image Path:", enemy.imagePath);
 
-    // Recalculate enemy stats based on the selected enemy
-    const initialEnemyStats = getMonsterStats(enemy.id, stats.playerLevel);
+    // Use the enemy's fixed per-stage stats from enemy_data.csv
+    const initialEnemyStats = { hp: enemy.hp, attack: enemy.attack };
 
     setCurrentEnemy(enemy);
     if (battleState === "start") {
@@ -372,12 +375,16 @@ const BattleScene: React.FC<BattleSceneProps> = ({ onComplete }) => {
 
   if (!currentKanji) return <div>Loading...</div>;
 
-  // Calculate EXP progress for meter
-  const expToNextLevel = stats.playerLevel * 100; // Simplified: 100 EXP per level
-  const expInCurrentLevel =
-    stats.currentExp -
-    (stats.playerLevel > 1 ? (stats.playerLevel - 1) * 100 : 0);
-  const expPercent = (expInCurrentLevel / expToNextLevel) * 100;
+  // Calculate EXP progress for meter using the real EXP table
+  const currentLevelBaseExp =
+    EXP_TABLE.find((d) => d.level === stats.playerLevel)?.totalExp ?? 0;
+  const nextLevelTotalExp = getExpForNextLevel(stats.playerLevel);
+  const expSpan = nextLevelTotalExp - currentLevelBaseExp;
+  const expInCurrentLevel = stats.currentExp - currentLevelBaseExp;
+  const expPercent =
+    expSpan === Infinity || expSpan <= 0
+      ? 100
+      : (expInCurrentLevel / expSpan) * 100;
 
   return (
     <div className="w-full h-screen bg-gray-900 text-white flex flex-col items-center justify-center relative overflow-hidden">
@@ -423,10 +430,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ onComplete }) => {
         {/* Enemy HUD */}
         <div className="bg-black/60 backdrop-blur-md rounded-xl p-3 border border-white/20 min-w-[200px] text-right">
           <div className="flex justify-between items-center mb-1">
-            {/* Enemy doesn't have explicit level in data, assume scaled by player level or stage? */}
-            {/* For now, just show "Lv.?" or remove it. Or use stageId * 5? */}
+            {/* Enemies have fixed per-stage stats, so show the stage number */}
             <span className="text-red-400 font-mono font-bold">
-              Lv.{stats.playerLevel}
+              Stage {stageId}
             </span>
             <span className="font-bold text-white">{currentEnemy.name}</span>
           </div>
@@ -488,7 +494,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ onComplete }) => {
           <MonsterDisplay
             name={currentEnemy.name}
             element={currentEnemy.element}
-            level={stats.playerLevel}
+            level={stageId}
             hp={enemyHp}
             maxHp={maxEnemyHp}
             imagePath={currentEnemy.imagePath}
