@@ -29,7 +29,7 @@ const GameMenu: React.FC<GameMenuProps> = ({ onQuest, onPractice, onStatus, onBa
     ];
 
     return (
-        <div className="w-full h-screen bg-gray-900 flex items-center justify-center relative overflow-hidden">
+        <div className="w-full min-h-dvh bg-gray-900 flex items-center justify-center relative overflow-x-hidden py-12">
             <div className={`absolute inset-0 ${getBgImage()} bg-cover bg-center opacity-30 blur-sm`} />
 
             <div className="z-10 w-full max-w-md flex flex-col gap-6 p-8">

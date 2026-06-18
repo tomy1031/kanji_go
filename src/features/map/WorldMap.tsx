@@ -39,7 +39,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect }) => {
     };
 
     return (
-        <div className="w-full h-screen bg-[#1a1a2e] relative overflow-hidden">
+        <div className="w-full h-dvh bg-[#1a1a2e] relative overflow-hidden">
             {/* Background Map Image */}
             <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
 

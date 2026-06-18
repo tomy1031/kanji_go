@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUserStore } from '../../store/userStore';
 import { getAllKanji } from '../../lib/kanjiUtils';
 import { getStages, type StageData } from '../../lib/stageUtils';
+import { MASTERY_THRESHOLD } from '../../lib/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface PracticeModeProps {
@@ -30,14 +31,14 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
 
         // Tab Filter
         // ALL: Show everything
-        // LEARNING: 1 <= mastery < 10
-        // MASTERED: mastery >= 10
+        // LEARNING: 1 <= mastery < MASTERY_THRESHOLD
+        // MASTERED: mastery >= MASTERY_THRESHOLD
         // UNLEARNED (Implicit in ALL, or maybe add a specific tab? User asked for clear distinction)
 
         if (activeTab === 'LEARNING') {
-            if (masteryCount === 0 || masteryCount >= 10) return false;
+            if (masteryCount === 0 || masteryCount >= MASTERY_THRESHOLD) return false;
         } else if (activeTab === 'MASTERED') {
-            if (masteryCount < 10) return false;
+            if (masteryCount < MASTERY_THRESHOLD) return false;
         }
 
         // Search Filter
@@ -50,7 +51,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
     });
 
     return (
-        <div className="w-full h-screen bg-gray-900 text-white flex flex-col relative overflow-hidden">
+        <div className="w-full h-dvh bg-gray-900 text-white flex flex-col relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('/backgrounds/practice_dojo.png')] bg-cover bg-center opacity-50" />
             <div className="absolute inset-0 bg-black/40" /> {/* Overlay for readability */}
             {/* Header */}
@@ -110,8 +111,8 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                         {filteredKanji.map((kanji) => {
                             const item = progress[kanji.id];
                             const mastery = item ? item.masteryCount : 0;
-                            const isMastered = mastery >= 10;
-                            const isLearning = mastery > 0 && mastery < 10;
+                            const isMastered = mastery >= MASTERY_THRESHOLD;
+                            const isLearning = mastery > 0 && mastery < MASTERY_THRESHOLD;
                             const isUnlearned = mastery === 0;
 
                             return (
@@ -158,11 +159,11 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                                         <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                                             <div
                                                 className={`h-full transition-all duration-500 ${isMastered ? 'bg-yellow-500' : 'bg-cyan-500'}`}
-                                                style={{ width: `${Math.min(100, (mastery / 10) * 100)}%` }}
+                                                style={{ width: `${Math.min(100, (mastery / MASTERY_THRESHOLD) * 100)}%` }}
                                             />
                                         </div>
                                         <div className="text-right text-xs text-gray-400 mt-1">
-                                            {mastery} / 10
+                                            {mastery} / {MASTERY_THRESHOLD}
                                         </div>
                                     </div>
                                 </motion.div>

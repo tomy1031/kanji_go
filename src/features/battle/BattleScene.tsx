@@ -387,7 +387,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ onComplete }) => {
       : (expInCurrentLevel / expSpan) * 100;
 
   return (
-    <div className="w-full h-screen bg-gray-900 text-white flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="w-full h-dvh bg-gray-900 text-white flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20" />
 

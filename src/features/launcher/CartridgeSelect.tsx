@@ -52,7 +52,7 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
     };
 
     return (
-        <div className="w-full h-screen bg-[#0f172a] text-white font-sans overflow-hidden flex flex-col relative">
+        <div className="w-full h-dvh bg-[#0f172a] text-white font-sans overflow-hidden flex flex-col relative">
             {/* Background Tech Pattern */}
             <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/circuit-board.png')] pointer-events-none" />
 
