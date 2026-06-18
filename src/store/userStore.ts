@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { type UserState, GameVersion } from '../types';
 import { getLevelFromExp } from '../lib/levelUtils';
+import { MASTERY_THRESHOLD } from '../lib/constants';
 
 interface UserStore extends UserState {
     setProfile: (profile: Partial<UserState['profile']>) => void;
@@ -67,7 +68,7 @@ export const useUserStore = create<UserStore>()(
                     };
 
                     const newMasteryCount = currentProgress.masteryCount + 1;
-                    const status = newMasteryCount >= 5 ? 'mastered' : 'learning';
+                    const status = newMasteryCount >= MASTERY_THRESHOLD ? 'mastered' : 'learning';
 
                     return {
                         progress: {

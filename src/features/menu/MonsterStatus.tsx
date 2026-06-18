@@ -30,7 +30,7 @@ const MonsterStatus: React.FC<MonsterStatusProps> = ({ onBack }) => {
     const allSkins = Object.values(MONSTER_DB).filter(m => m.element === currentMonster.element);
 
     return (
-        <div className="w-full h-screen bg-gray-800 text-white flex flex-col">
+        <div className="w-full min-h-dvh bg-gray-800 text-white flex flex-col">
             {/* Header */}
             <div className="p-6 flex justify-between items-center bg-gray-900 shadow-md">
                 <button onClick={onBack} className="text-gray-400 hover:text-white">← Back</button>
@@ -38,7 +38,7 @@ const MonsterStatus: React.FC<MonsterStatusProps> = ({ onBack }) => {
                 <div className="w-8" />
             </div>
 
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden">
                 {/* Left: Preview */}
                 <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-gray-800 to-gray-900 relative">
                     <div className="absolute top-4 left-4 bg-black/50 px-4 py-2 rounded-full">

@@ -71,7 +71,10 @@ function App() {
 
   return (
     <SoundProvider>
-      <div className="w-full h-screen bg-gray-900 text-white font-sans overflow-hidden">
+      {/* min-h-dvh (not h-screen) lets pages grow taller than the viewport and
+          scroll on small/landscape screens; overflow-x-hidden contains the
+          decorative background layers. */}
+      <div className="w-full min-h-dvh bg-gray-900 text-white font-sans overflow-x-hidden">
         {scene === 'OPENING' && <OpeningSequence onComplete={handleOpeningComplete} />}
         {scene === 'LAUNCHER' && <CartridgeSelect onSelect={handleVersionSelect} />}
         {scene === 'STARTER_SELECT' && <StarterSelection onSelect={handleStarterSelected} />}
@@ -93,10 +96,11 @@ function App() {
         {scene === 'MAP' && <WorldMap onLevelSelect={handleLevelSelect} />}
 
         {scene === 'BATTLE' && (
-          <div className="relative w-full h-full">
+          <div className="relative w-full h-dvh">
+            {/* Bottom-right so it doesn't overlap the enemy HUD (top-right) */}
             <button
               onClick={handleBattleEnd}
-              className="absolute top-4 right-4 z-50 bg-gray-800/50 px-3 py-1 rounded text-sm hover:bg-gray-700"
+              className="absolute bottom-4 right-4 z-50 bg-gray-800/70 px-3 py-1 rounded text-sm hover:bg-gray-700"
             >
               Exit Battle
             </button>

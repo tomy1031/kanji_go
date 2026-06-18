@@ -75,6 +75,7 @@ export const checkEvolution = (monsterId: string, currentLevel: number): string 
 // Check if a skin should be unlocked based on user progress
 import { getAllKanji } from './kanjiUtils';
 import type { UserState } from '../types';
+import { MASTERY_THRESHOLD } from './constants';
 
 export const checkSkinUnlock = (monsterId: string, userState: UserState): boolean => {
     const monster = MONSTER_DB[monsterId];
@@ -98,7 +99,7 @@ export const checkSkinUnlock = (monsterId: string, userState: UserState): boolea
         const masteredCount = allKanji.filter(k => {
             if (k.element !== element) return false;
             const prog = userState.progress[k.id];
-            return prog && prog.masteryCount >= 10;
+            return prog && prog.masteryCount >= MASTERY_THRESHOLD;
         }).length;
 
         return masteredCount >= requiredCount;

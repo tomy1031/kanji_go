@@ -5,6 +5,8 @@ import { MONSTER_DB } from '../../lib/evolutionUtils';
 import { getStages, type StageData } from '../../lib/stageUtils';
 import { useSound } from '../../hooks/useSound';
 import { getEnemyForStage } from '../../lib/enemyUtils';
+import { getKanjiForStage } from '../../lib/kanjiUtils';
+import { preloadCharData } from '../../lib/kanjiDataLoader';
 
 interface WorldMapProps {
     onLevelSelect: (levelId: string) => void;
@@ -27,6 +29,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect }) => {
     const handleStageClick = (stage: StageData) => {
         if (stage.status === 'locked') return;
         playSfx('select');
+        // Warm the stroke-data cache before entering the battle so the writing
+        // canvas is ready the moment the stage starts.
+        preloadCharData(getKanjiForStage(stage.id).map((k) => k.char));
         setCurrentStage(stage.id);
         onLevelSelect(stage.id.toString());
     };
@@ -39,7 +44,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect }) => {
     };
 
     return (
-        <div className="w-full h-screen bg-[#1a1a2e] relative overflow-hidden">
+        <div className="w-full h-dvh bg-[#1a1a2e] relative overflow-hidden">
             {/* Background Map Image */}
             <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
 
