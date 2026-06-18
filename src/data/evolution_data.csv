@@ -1,21 +1,21 @@
 id,name,element,baseHp,baseAttack,evolutionConditionType,evolutionConditionValue,nextFormId,description,unlockText,elementalStrengths,elementalWeaknesses,unlockCondition
-starter_fire,Hinoko,FIRE,100,20,LEVEL,5,evo_fire,A small flame spirit full of potential.,Unlocked by default,NATURE|METAL,AQUA,STARTER
-evo_fire,Gouka,FIRE,200,40,LEVEL,10,final_fire,A raging fire beast.,Evolve Hinoko to Level 5,NATURE|METAL,AQUA,EVOLUTION
-final_fire,Enjin,FIRE,500,100,NONE,0,,The god of flames.,Evolve Gouka to Level 10,NATURE|METAL,AQUA,EVOLUTION
-starter_water,Mizuku,AQUA,100,20,LEVEL,5,evo_water,A playful water droplet.,Unlocked by default,FIRE|METAL,NATURE,STARTER
-evo_water,Tsunami,AQUA,200,40,LEVEL,10,final_water,A powerful wave crasher.,Evolve Mizuku to Level 5,FIRE|METAL,NATURE,EVOLUTION
-final_water,Ryujin,AQUA,500,100,NONE,0,,The dragon king of the sea.,Evolve Tsunami to Level 10,FIRE|METAL,NATURE,EVOLUTION
-starter_nature,Kusa,NATURE,100,20,LEVEL,5,evo_nature,A sprouting seedling.,Unlocked by default,AQUA|LIGHT,FIRE,STARTER
-evo_nature,Mori,NATURE,200,40,LEVEL,10,final_nature,A guardian of the forest.,Evolve Kusa to Level 5,AQUA|LIGHT,FIRE,EVOLUTION
-final_nature,Gaia,NATURE,500,100,NONE,0,,The spirit of the earth itself.,Evolve Mori to Level 10,AQUA|LIGHT,FIRE,EVOLUTION
-secret_metal,Tetsu,METAL,150,30,LEVEL,10,,A sturdy metal slime.,Master 5 Metal Kanji,FIRE,AQUA,MASTERY:METAL:5
-wolf_nature,Forest Wolf,NATURE,120,25,NONE,0,,A fierce wolf guarding the woods.,Defeat in Stage 1,AQUA|LIGHT,FIRE,DEFEAT
-boss_fire,Magma Golem,FIRE,300,50,NONE,0,,A golem born from volcanic rock.,Defeat in Stage 5,NATURE|METAL,AQUA,DEFEAT
-boss_water,Tidal Serpent,AQUA,350,55,NONE,0,,A serpent that controls the tides.,Defeat in Stage 8,FIRE|METAL,NATURE,DEFEAT
-boss_nature,Elder Treant,NATURE,400,60,NONE,0,,An ancient tree spirit.,Defeat in Stage 9,AQUA|LIGHT,FIRE,DEFEAT
-dragon_fire,Inferno Dragon,FIRE,600,80,NONE,0,,The legendary dragon of the inferno.,Defeat in Stage 10,NATURE|METAL,AQUA,DEFEAT
-slime_fire,Magma Slime,FIRE,50,10,NONE,0,,A hot slime.,Defeat in Stage 1,NATURE|METAL,AQUA,DEFEAT
-slime_water,Aqua Slime,AQUA,50,10,NONE,0,,A wet slime.,Defeat in Stage 1,FIRE|METAL,NATURE,DEFEAT
-slime_nature,Moss Slime,NATURE,50,10,NONE,0,,A grassy slime.,Defeat in Stage 1,AQUA|LIGHT,FIRE,DEFEAT
-wolf_fire,Flame Wolf,FIRE,120,25,NONE,0,,A burning wolf.,Defeat in Stage 2,NATURE|METAL,AQUA,DEFEAT
-wolf_water,Tide Wolf,AQUA,120,25,NONE,0,,A swimming wolf.,Defeat in Stage 3,FIRE|METAL,NATURE,DEFEAT
+starter_fire,Hinoko,FIRE,100,20,LEVEL,4,evo_fire,A small flame spirit full of potential.,Unlocked by default,NATURE|METAL,AQUA,STARTER
+evo_fire,Gouka,FIRE,180,35,LEVEL,8,final_fire,A raging fire beast.,Evolve Hinoko to Level 4,NATURE|METAL,AQUA,EVOLUTION
+final_fire,Enjin,FIRE,320,60,NONE,0,,The god of flames.,Evolve Gouka to Level 8,NATURE|METAL,AQUA,EVOLUTION
+starter_water,Mizuku,AQUA,100,20,LEVEL,4,evo_water,A playful water droplet.,Unlocked by default,FIRE|METAL,NATURE,STARTER
+evo_water,Tsunami,AQUA,180,35,LEVEL,8,final_water,A powerful wave crasher.,Evolve Mizuku to Level 4,FIRE|METAL,NATURE,EVOLUTION
+final_water,Ryujin,AQUA,320,60,NONE,0,,The dragon king of the sea.,Evolve Tsunami to Level 8,FIRE|METAL,NATURE,EVOLUTION
+starter_nature,Kusa,NATURE,100,20,LEVEL,4,evo_nature,A sprouting seedling.,Unlocked by default,AQUA|LIGHT,FIRE,STARTER
+evo_nature,Mori,NATURE,180,35,LEVEL,8,final_nature,A guardian of the forest.,Evolve Kusa to Level 4,AQUA|LIGHT,FIRE,EVOLUTION
+final_nature,Gaia,NATURE,320,60,NONE,0,,The spirit of the earth itself.,Evolve Mori to Level 8,AQUA|LIGHT,FIRE,EVOLUTION
+secret_metal,Tetsu,METAL,180,35,NONE,0,,A sturdy metal slime.,Master 5 Metal Kanji,FIRE,AQUA,MASTERY:METAL:5
+slime_fire,Magma Slime,FIRE,100,20,NONE,0,,A hot slime brimming with embers.,Defeat in Stage 1,NATURE|METAL,AQUA,DEFEAT
+slime_nature,Moss Slime,NATURE,100,20,NONE,0,,A grassy slime full of life.,Defeat in Stage 2,AQUA|LIGHT,FIRE,DEFEAT
+slime_water,Aqua Slime,AQUA,100,20,NONE,0,,A cool slime made of pure water.,Defeat in Stage 3,FIRE|METAL,NATURE,DEFEAT
+wolf_fire,Flame Wolf,FIRE,180,35,NONE,0,,A burning wolf with a fierce spirit.,Defeat in Stage 4,NATURE|METAL,AQUA,DEFEAT
+wolf_nature,Forest Wolf,NATURE,180,35,NONE,0,,A wolf that guards the deep woods.,Defeat in Stage 5,AQUA|LIGHT,FIRE,DEFEAT
+wolf_water,Tide Wolf,AQUA,180,35,NONE,0,,A wolf that rides the ocean tides.,Defeat in Stage 6,FIRE|METAL,NATURE,DEFEAT
+boss_fire,Ifrit,FIRE,320,60,NONE,0,,A blazing titan of molten rock.,Defeat in Stage 7,NATURE|METAL,AQUA,DEFEAT
+boss_nature,Treant,NATURE,320,60,NONE,0,,An ancient tree spirit of great power.,Defeat in Stage 8,AQUA|LIGHT,FIRE,DEFEAT
+boss_water,Leviathan,AQUA,320,60,NONE,0,,A colossal serpent of the deep sea.,Defeat in Stage 9,FIRE|METAL,NATURE,DEFEAT
+dragon_fire,Elder Dragon,FIRE,400,75,NONE,0,,The legendary dragon of the inferno.,Defeat in Stage 10,NATURE|METAL,AQUA,DEFEAT

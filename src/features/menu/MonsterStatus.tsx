@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useUserStore } from '../../store/userStore';
-import { MONSTER_DB } from '../../lib/evolutionUtils';
+import { MONSTER_DB, getMonsterStats } from '../../lib/evolutionUtils';
 import MonsterDisplay from '../battle/MonsterDisplay';
 
 interface MonsterStatusProps {
@@ -13,6 +13,8 @@ const MonsterStatus: React.FC<MonsterStatusProps> = ({ onBack }) => {
 
     const currentMonster = MONSTER_DB[partners.currentMonsterId];
     const previewMonster = MONSTER_DB[selectedSkin];
+    // Use the same growth formula as battle so the menu matches in-combat stats
+    const previewStats = getMonsterStats(selectedSkin, stats.playerLevel);
 
     const isUnlocked = (skinId: string) => partners.unlockedSkins.includes(skinId);
 
@@ -47,16 +49,16 @@ const MonsterStatus: React.FC<MonsterStatusProps> = ({ onBack }) => {
                         name={previewMonster.name}
                         element={previewMonster.element}
                         level={stats.playerLevel}
-                        hp={previewMonster.baseHp + (stats.playerLevel * 10)}
-                        maxHp={previewMonster.baseHp + (stats.playerLevel * 10)}
+                        hp={previewStats.hp}
+                        maxHp={previewStats.hp}
                         imagePath={`/monsters/${previewMonster.id}.png`}
                     />
 
                     <div className="mt-8 text-center">
                         <h3 className="text-3xl font-bold mb-2">{previewMonster.name}</h3>
                         <div className="flex justify-center gap-4 mb-4 text-sm font-mono text-cyan-300">
-                            <span>HP: {previewMonster.baseHp + (stats.playerLevel * 10)}</span>
-                            <span>ATK: {previewMonster.baseAttack + (stats.playerLevel * 5)}</span>
+                            <span>HP: {previewStats.hp}</span>
+                            <span>ATK: {previewStats.attack}</span>
                         </div>
                         <p className="text-gray-400 max-w-md">{previewMonster.description}</p>
                     </div>

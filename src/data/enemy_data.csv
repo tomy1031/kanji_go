@@ -1,11 +1,11 @@
 id,name,element,hp,attack,imagePath,expReward,goldReward
-slime_fire,Magma Slime,FIRE,50,10,/monsters/slime_fire.png,10,5
-slime_water,Aqua Slime,AQUA,50,10,/monsters/slime_water.png,10,5
-slime_nature,Moss Slime,NATURE,50,10,/monsters/slime_nature.png,10,5
-wolf_fire,Flame Wolf,FIRE,120,25,/monsters/wolf_fire.png,30,15
-wolf_water,Tide Wolf,AQUA,120,25,/monsters/wolf_water.png,30,15
-wolf_nature,Forest Wolf,NATURE,120,25,/monsters/wolf_nature.png,30,15
-boss_fire,Ifrit,FIRE,500,50,/monsters/boss_fire.png,200,100
-boss_water,Leviathan,AQUA,500,50,/monsters/boss_water.png,200,100
-boss_nature,Treant,NATURE,500,50,/monsters/boss_nature.png,200,100
-dragon_fire,Elder Dragon,FIRE,1000,100,/monsters/dragon_fire.png,500,250
+slime_fire,Magma Slime,FIRE,60,10,/monsters/slime_fire.png,50,10
+slime_nature,Moss Slime,NATURE,70,12,/monsters/slime_nature.png,70,12
+slime_water,Aqua Slime,AQUA,100,15,/monsters/slime_water.png,100,15
+wolf_fire,Flame Wolf,FIRE,180,38,/monsters/wolf_fire.png,140,20
+wolf_nature,Forest Wolf,NATURE,240,42,/monsters/wolf_nature.png,170,25
+wolf_water,Tide Wolf,AQUA,260,52,/monsters/wolf_water.png,230,30
+boss_fire,Ifrit,FIRE,330,58,/monsters/boss_fire.png,290,60
+boss_nature,Treant,NATURE,700,105,/monsters/boss_nature.png,330,70
+boss_water,Leviathan,AQUA,750,112,/monsters/boss_water.png,380,80
+dragon_fire,Elder Dragon,FIRE,1000,150,/monsters/dragon_fire.png,410,100
