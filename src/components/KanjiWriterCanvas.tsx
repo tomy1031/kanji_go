@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import HanziWriter from 'hanzi-writer';
+import { getCachedCharData, loadCharData } from '../lib/kanjiDataLoader';
 
 interface KanjiWriterCanvasProps {
     char: string;
@@ -32,7 +33,10 @@ const KanjiWriterCanvas: React.FC<KanjiWriterCanvasProps> = ({
         const target = targetRef.current;
         if (!target) return;
 
-        // Initialize HanziWriter
+        // Initialize HanziWriter. charDataLoader serves stroke data from the
+        // local bundle (public/kanji-data/) instead of the default CDN: if the
+        // character was preloaded it is returned synchronously (instant, no
+        // flicker), otherwise it is fetched from the same origin.
         writerRef.current = HanziWriter.create(target, char, {
             width: size,
             height: size,
@@ -43,6 +47,8 @@ const KanjiWriterCanvas: React.FC<KanjiWriterCanvasProps> = ({
             delayBetweenStrokes: 1000,
             radicalColor: '#168F16',
             drawingWidth: 20, // Make strokes thicker
+            charDataLoader: (character: string) =>
+                getCachedCharData(character) ?? loadCharData(character),
         });
 
         // Start quiz immediately if in quiz mode

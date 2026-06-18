@@ -8,6 +8,7 @@ import { MONSTER_DB, getMonsterStats } from "../../lib/evolutionUtils";
 import { ENEMY_DB, getEnemyForStage } from "../../lib/enemyUtils";
 import { EXP_TABLE, getExpForNextLevel } from "../../lib/levelUtils";
 import { getKanjiForStage } from "../../lib/kanjiUtils";
+import { preloadCharData } from "../../lib/kanjiDataLoader";
 import { calculateNextReview } from "../../lib/srsAlgorithm";
 import { type KanjiData } from "../../types";
 
@@ -132,6 +133,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ onComplete }) => {
 
     const kanjis = getKanjiForStage(stageId);
     setStageKanjiList(kanjis);
+    // Prepare all stroke data for this stage up front so the writing canvas
+    // renders instantly instead of fetching per-kanji during the battle.
+    preloadCharData(kanjis.map((k) => k.char));
 
     setBattleState("battle");
   }, [playBgm, stageId, stats.playerLevel]);

@@ -5,6 +5,8 @@ import { MONSTER_DB } from '../../lib/evolutionUtils';
 import { getStages, type StageData } from '../../lib/stageUtils';
 import { useSound } from '../../hooks/useSound';
 import { getEnemyForStage } from '../../lib/enemyUtils';
+import { getKanjiForStage } from '../../lib/kanjiUtils';
+import { preloadCharData } from '../../lib/kanjiDataLoader';
 
 interface WorldMapProps {
     onLevelSelect: (levelId: string) => void;
@@ -27,6 +29,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect }) => {
     const handleStageClick = (stage: StageData) => {
         if (stage.status === 'locked') return;
         playSfx('select');
+        // Warm the stroke-data cache before entering the battle so the writing
+        // canvas is ready the moment the stage starts.
+        preloadCharData(getKanjiForStage(stage.id).map((k) => k.char));
         setCurrentStage(stage.id);
         onLevelSelect(stage.id.toString());
     };
