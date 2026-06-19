@@ -11,6 +11,7 @@ import PracticeMode from './features/practice/PracticeMode';
 import { GameVersion } from './types';
 import { useUserStore } from './store/userStore';
 import { SoundProvider } from './lib/SoundManager';
+import InstallPrompt from './components/InstallPrompt';
 
 type Scene = 'OPENING' | 'LAUNCHER' | 'STARTER_SELECT' | 'TITLE' | 'MENU' | 'MAP' | 'BATTLE' | 'STATUS' | 'PRACTICE';
 
@@ -107,6 +108,8 @@ function App() {
             <BattleScene onComplete={handleBattleEnd} />
           </div>
         )}
+
+        <InstallPrompt />
       </div>
     </SoundProvider>
   );
