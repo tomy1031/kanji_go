@@ -1,24 +1,92 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import BattleScene from './features/battle/BattleScene';
 import CartridgeSelect from './features/launcher/CartridgeSelect';
 import OpeningSequence from './features/launcher/OpeningSequence';
-import StarterSelection from './features/launcher/StarterSelection';
+
 import WorldMap from './features/map/WorldMap';
 import TitleScreen from './features/title/TitleScreen';
 import GameMenu from './features/menu/GameMenu';
 import MonsterStatus from './features/menu/MonsterStatus';
 import PracticeMode from './features/practice/PracticeMode';
+import OnlineLobby from './features/online/OnlineLobby';
+import AssetPreloader from './components/AssetPreloader';
+import DebugMode from './components/DebugMode';
 import { GameVersion } from './types';
 import { useUserStore } from './store/userStore';
 import { SoundProvider } from './lib/SoundManager';
-import InstallPrompt from './components/InstallPrompt';
+import OnlineBattleScene from './features/online/OnlineBattleScene';
+import { useOnlineStore } from './features/online/onlineStore';
 
-type Scene = 'OPENING' | 'LAUNCHER' | 'STARTER_SELECT' | 'TITLE' | 'MENU' | 'MAP' | 'BATTLE' | 'STATUS' | 'PRACTICE';
+type Scene = 'PRELOAD' | 'OPENING' | 'LAUNCHER' | 'TITLE' | 'MENU' | 'MAP' | 'BATTLE' | 'STATUS' | 'PRACTICE' | 'ONLINE' | 'ONLINE_BATTLE';
+
+// Hidden command: Press Shift+D 5 times within 2 seconds to open debug mode
+const DEBUG_KEY_COUNT = 5;
+const DEBUG_KEY_TIMEOUT = 2000;
+// Mobile: 5 rapid taps anywhere on screen
+const DEBUG_TAP_COUNT = 10;
 
 function App() {
-  const [scene, setScene] = useState<Scene>('OPENING');
+  const [scene, setScene] = useState<Scene>('PRELOAD');
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const { profile, partners } = useUserStore();
+  const [showDebug, setShowDebug] = useState(false);
+  const { profile } = useUserStore();
+  const { connectionStatus } = useOnlineStore();
+
+  // Effect to switch to ONLINE_BATTLE when connected
+  useEffect(() => {
+    if (scene === 'ONLINE' && connectionStatus === 'connected') {
+      setScene('ONLINE_BATTLE');
+    }
+  }, [scene, connectionStatus]);
+
+  // Debug mode key tracking
+  const debugKeyPresses = useRef<number[]>([]);
+  const debugTaps = useRef<number[]>([]);
+
+  // Listen for debug mode activation (Shift+D x 5)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && e.key.toLowerCase() === 'd') {
+        const now = Date.now();
+        debugKeyPresses.current.push(now);
+
+        // Filter out old presses
+        debugKeyPresses.current = debugKeyPresses.current.filter(
+          time => now - time < DEBUG_KEY_TIMEOUT
+        );
+
+        // Check if we have enough presses
+        if (debugKeyPresses.current.length >= DEBUG_KEY_COUNT) {
+          setShowDebug(true);
+          debugKeyPresses.current = [];
+        }
+      }
+    };
+
+    // Mobile: 5 rapid taps anywhere on screen (using touchend for better detection)
+    const handleTouch = () => {
+      const now = Date.now();
+      debugTaps.current.push(now);
+
+      // Filter out old taps
+      debugTaps.current = debugTaps.current.filter(
+        time => now - time < DEBUG_KEY_TIMEOUT
+      );
+
+      // Check if we have enough taps
+      if (debugTaps.current.length >= DEBUG_TAP_COUNT) {
+        setShowDebug(true);
+        debugTaps.current = [];
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('touchend', handleTouch);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('touchend', handleTouch);
+    };
+  }, []);
 
   // Prevent unused variable error
   useEffect(() => {
@@ -31,24 +99,7 @@ function App() {
 
   const handleVersionSelect = (version: GameVersion) => {
     console.log(`Selected version: ${version} `);
-    // Check if user has a starter
-    if (!partners.currentMonsterId || partners.currentMonsterId === 'starter_fire') {
-      // Note: 'starter_fire' is default in initial state, but we might want to force selection if it's a "fresh" start.
-      // For now, let's assume if they haven't "really" picked, we show it.
-      // Or better, check if they have unlocked any skins other than default?
-      // Let's just show it if they are on the default and haven't played? 
-      // Simplified: Always show starter select if it's the first time (we can track this via a flag or just check if unlockedSkins has only 1).
-      if (partners.unlockedSkins.length <= 1) {
-        setScene('STARTER_SELECT');
-      } else {
-        setScene('TITLE');
-      }
-    } else {
-      setScene('TITLE');
-    }
-  };
-
-  const handleStarterSelected = () => {
+    // Skip starter selection, go directly to title
     setScene('TITLE');
   };
 
@@ -60,9 +111,9 @@ function App() {
     setScene('LAUNCHER');
   };
 
-  const handleLevelSelect = (levelId: string) => {
-    console.log(`Selected level: ${levelId} `);
-    setSelectedLevel(levelId);
+  const handleLevelSelect = (stageKey: string) => {
+    console.log(`Selected stage: ${stageKey}`);
+    setSelectedLevel(stageKey);
     setScene('BATTLE');
   };
 
@@ -70,15 +121,21 @@ function App() {
     setScene('MAP');
   };
 
+  const handlePreloadComplete = useCallback(() => {
+    setScene('OPENING');
+  }, []);
+
   return (
     <SoundProvider>
-      {/* min-h-dvh (not h-screen) lets pages grow taller than the viewport and
-          scroll on small/landscape screens; overflow-x-hidden contains the
-          decorative background layers. */}
-      <div className="w-full min-h-dvh bg-gray-900 text-white font-sans overflow-x-hidden">
+      <div className="w-full h-screen bg-gray-900 text-white font-sans overflow-hidden">
+        {scene === 'PRELOAD' && (
+          <AssetPreloader onComplete={handlePreloadComplete}>
+            <div />
+          </AssetPreloader>
+        )}
         {scene === 'OPENING' && <OpeningSequence onComplete={handleOpeningComplete} />}
         {scene === 'LAUNCHER' && <CartridgeSelect onSelect={handleVersionSelect} />}
-        {scene === 'STARTER_SELECT' && <StarterSelection onSelect={handleStarterSelected} />}
+
         {scene === 'TITLE' && <TitleScreen version={profile.currentVersion} onStart={handleTitleStart} onBack={handleTitleBack} />}
 
         {scene === 'MENU' && (
@@ -86,30 +143,37 @@ function App() {
             onQuest={() => setScene('MAP')}
             onPractice={() => setScene('PRACTICE')}
             onStatus={() => setScene('STATUS')}
+            onOnline={() => setScene('ONLINE')}
             onBack={() => setScene('TITLE')}
           />
         )}
 
         {scene === 'PRACTICE' && <PracticeMode onBack={() => setScene('MENU')} />}
 
+        {scene === 'ONLINE' && <OnlineLobby onBack={() => setScene('MENU')} />}
+        {scene === 'ONLINE_BATTLE' && <OnlineBattleScene onLeave={() => setScene('ONLINE')} />}
+
         {scene === 'STATUS' && <MonsterStatus onBack={() => setScene('MENU')} />}
 
-        {scene === 'MAP' && <WorldMap onLevelSelect={handleLevelSelect} />}
+        {scene === 'MAP' && <WorldMap onLevelSelect={handleLevelSelect} onBack={() => setScene('MENU')} />}
 
         {scene === 'BATTLE' && (
-          <div className="relative w-full h-dvh">
-            {/* Bottom-right so it doesn't overlap the enemy HUD (top-right) */}
+          <div className="relative w-full h-full">
             <button
               onClick={handleBattleEnd}
-              className="absolute bottom-4 right-4 z-50 bg-gray-800/70 px-3 py-1 rounded text-sm hover:bg-gray-700"
+              className="absolute top-4 right-4 z-50 bg-gray-800/50 px-3 py-1 rounded text-sm hover:bg-gray-700"
             >
               Exit Battle
             </button>
-            <BattleScene onComplete={handleBattleEnd} />
+            {selectedLevel && (() => {
+              const [world, order] = selectedLevel.split('-').map(Number);
+              return <BattleScene world={world} order={order} onComplete={handleBattleEnd} />;
+            })()}
           </div>
         )}
 
-        <InstallPrompt />
+        {/* Debug Mode Modal */}
+        <DebugMode isOpen={showDebug} onClose={() => setShowDebug(false)} />
       </div>
     </SoundProvider>
   );

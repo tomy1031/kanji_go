@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+/* Battle UI Animations */
+@keyframes fighterIdle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes hpCritical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}

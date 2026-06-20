@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { GameVersion } from '../../types';
+import { useSound } from '../../hooks/useSound';
 
 interface TitleScreenProps {
     version: GameVersion;
@@ -8,33 +9,43 @@ interface TitleScreenProps {
     onBack: () => void;
 }
 
+import { getAssetPath } from '../../utils/assetUtils';
+
+// ...
+
 const TitleScreen: React.FC<TitleScreenProps> = ({ version, onStart, onBack }) => {
+    const { playBgm } = useSound();
+
+    // Play title BGM when entering title screen
+    useEffect(() => {
+        playBgm('title');
+    }, [playBgm]);
     const getTheme = () => {
         switch (version) {
             case GameVersion.RED:
                 return {
-                    bg: "bg-[url('/backgrounds/title_red.png')]",
+                    bgImage: getAssetPath('/backgrounds/title_red.png'),
                     titleColor: "text-red-500",
                     buttonColor: "bg-red-600 hover:bg-red-500",
                     accent: "border-red-500"
                 };
-            case GameVersion.GREEN:
-                return {
-                    bg: "bg-[url('/backgrounds/title_green.png')]",
-                    titleColor: "text-green-500",
-                    buttonColor: "bg-green-600 hover:bg-green-500",
-                    accent: "border-green-500"
-                };
             case GameVersion.BLUE:
                 return {
-                    bg: "bg-[url('/backgrounds/title_blue.png')]",
+                    bgImage: getAssetPath('/backgrounds/title_blue.png'),
                     titleColor: "text-blue-500",
                     buttonColor: "bg-blue-600 hover:bg-blue-500",
                     accent: "border-blue-500"
                 };
+            case GameVersion.GREEN:
+                return {
+                    bgImage: getAssetPath('/backgrounds/title_green.png'),
+                    titleColor: "text-green-500",
+                    buttonColor: "bg-green-600 hover:bg-green-500",
+                    accent: "border-green-500"
+                };
             default:
                 return {
-                    bg: "bg-gray-900",
+                    bgImage: "",
                     titleColor: "text-white",
                     buttonColor: "bg-gray-600",
                     accent: "border-gray-500"
@@ -45,14 +56,19 @@ const TitleScreen: React.FC<TitleScreenProps> = ({ version, onStart, onBack }) =
     const theme = getTheme();
 
     return (
-        <div className={`w-full min-h-dvh ${theme.bg} bg-cover bg-center flex flex-col items-center justify-center relative overflow-x-hidden py-16`}>
+        <div
+            className="w-full h-screen bg-gray-900 bg-cover bg-center flex flex-col items-center justify-center relative overflow-hidden"
+            style={{ backgroundImage: theme.bgImage ? `url(${theme.bgImage})` : undefined }}
+        >
             <div className="absolute inset-0 bg-black/40" /> {/* Overlay */}
 
-            <div className="z-10 text-center">
+
+
+            <div className="z-10 text-center px-4">
                 <motion.h1
                     initial={{ y: -50, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className={`text-6xl md:text-8xl font-black mb-4 ${theme.titleColor} drop-shadow-[0_0_15px_rgba(0,0,0,0.8)] tracking-tighter`}
+                    className={`text-5xl md:text-8xl font-black mb-4 ${theme.titleColor} drop-shadow-[0_0_15px_rgba(0,0,0,0.8)] tracking-tighter`}
                 >
                     KANJI GO!
                 </motion.h1>
@@ -61,7 +77,7 @@ const TitleScreen: React.FC<TitleScreenProps> = ({ version, onStart, onBack }) =
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.3 }}
-                    className={`text-2xl font-bold text-white mb-12 tracking-widest uppercase border-b-4 ${theme.accent} inline-block pb-2`}
+                    className={`text-xl md:text-2xl font-bold text-white mb-8 md:mb-12 tracking-widest uppercase border-b-4 ${theme.accent} inline-block pb-2`}
                 >
                     {version} VERSION
                 </motion.div>
@@ -73,7 +89,7 @@ const TitleScreen: React.FC<TitleScreenProps> = ({ version, onStart, onBack }) =
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={onStart}
-                    className={`${theme.buttonColor} text-white text-xl font-bold py-4 px-12 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.5)] border-2 border-white/20`}
+                    className={`${theme.buttonColor} text-white text-lg md:text-xl font-bold py-3 px-8 md:py-4 md:px-12 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.5)] border-2 border-white/20`}
                 >
                     PRESS START
                 </motion.button>

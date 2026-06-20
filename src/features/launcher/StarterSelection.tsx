@@ -19,7 +19,7 @@ const starters = [
     {
         id: 'starter_water',
         name: 'Mizuku',
-        element: ElementType.AQUA,
+        element: ElementType.WATER,
         description: 'A calm droplet that flows like water.',
         color: 'from-blue-500 to-cyan-600',
         icon: '💧'
@@ -48,7 +48,7 @@ const StarterSelection: React.FC<StarterSelectionProps> = ({ onSelect }) => {
     };
 
     return (
-        <div className="w-full min-h-dvh bg-gray-900 text-white flex flex-col items-center justify-center relative overflow-x-hidden py-12">
+        <div className="w-full h-screen bg-gray-900 text-white flex flex-col items-center justify-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse" />
 
             <motion.h1

@@ -1,21 +1,21 @@
+// 5属性 + 特殊属性
 export const ElementType = {
-    FIRE: 'FIRE',     // 火・熱・攻撃
-    AQUA: 'AQUA',     // 水・冷・流
-    NATURE: 'NATURE', // 木・草・生
-    METAL: 'METAL',   // 金・土・岩
-    LIGHT: 'LIGHT',   // 日・月・光・神
-    LIFE: 'LIFE',     // 人・心・体
-    CHRONO: 'CHRONO', // 時・移動
-    MAGIC: 'MAGIC',   // 学・知・抽象
-    BOSS: 'BOSS'      // ボス
+    FIRE: 'FIRE',       // 🔥 火 (Weak: Water)
+    WATER: 'WATER',     // 💧 水 (Weak: Nature)
+    NATURE: 'NATURE',   // 🌿 木 (Weak: Fire)
+    LIGHT: 'LIGHT',     // ✨ 光 (Weak: Dark)
+    DARK: 'DARK',       // 🌑 闇 (Weak: Light)
+    // 特殊
+    BOSS: 'BOSS',
+    NONE: 'NONE'        // 弱点なし等
 } as const;
 
 export type ElementType = typeof ElementType[keyof typeof ElementType];
 
 export const GameVersion = {
     RED: 'N5',
-    GREEN: 'N4',
-    BLUE: 'N3'
+    GREEN: 'N3',
+    BLUE: 'N4'
 } as const;
 
 export type GameVersion = typeof GameVersion[keyof typeof GameVersion];
@@ -32,8 +32,19 @@ export interface KanjiData {
     meanings: string[];     // ["fire", "Tuesday"]
     strokes: number;        // 4 (画数 = 基礎HP係数)
     tags: string[];         // ["basic", "nature"]
-    stage?: number;
-    isBoss?: boolean;
+    world?: number;         // World number (1, 2, 3...)
+    order?: number;         // Order within world (1, 2, 3, 4 where 4=BOSS)
+    exampleSentence?: string;
+    exampleReading?: string;
+}
+
+export interface KanjiProgress {
+    status: 'new' | 'learning' | 'mastered';
+    nextReview: number; // Timestamp
+    interval: number;   // Days
+    streak: number;     // 連続正解数
+    masteryCount: number; // 累計正解回数（進化判定用）
+    practiceCount?: number; // Number of times written in Practice Mode
 }
 
 export interface UserState {
@@ -41,6 +52,7 @@ export interface UserState {
         name: string;
         currentVersion: GameVersion; // 選択中のソフト
         avatarId: string;
+        playerId?: string; // Persistent peer ID (auto-generated)
     };
     stats: {
         playerLevel: number;
@@ -53,14 +65,22 @@ export interface UserState {
     };
     currentStageId?: number;
     maxUnlockedStage: number;
+    selectedChapter?: number | null; // Currently selected chapter in WorldMap
+    stageRatings: Record<string, number>; // Key: `${level}-${stageId}`, Value: 0-3
     // 学習進捗 (SRSデータ)
-    progress: {
-        [kanjiChar: string]: {
-            status: 'new' | 'learning' | 'mastered';
-            nextReview: number; // Timestamp
-            interval: number;   // Days
-            streak: number;     // 連続正解数
-            masteryCount: number; // 累計正解回数（進化判定用）
-        };
+    progress: Record<string, KanjiProgress>;
+    debugSettings: {
+        practiceExpMode: 'CHAR' | 'COMPLETE';
     };
+    // Friends list for online battle
+    // Friends list for online battle
+    friends: Friend[];
+    battleRecords: Record<string, { wins: number; losses: number }>;
+}
+
+// Friend for online battle lobby
+export interface Friend {
+    id: string;      // Their permanent player ID
+    name: string;    // Display name (may be outdated)
+    addedAt: number; // Timestamp when added
 }

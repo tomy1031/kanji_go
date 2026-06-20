@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SoundContext } from './SoundContext';
 import { useUserStore } from '../store/userStore';
 import { GameVersion } from '../types';
+import { getAssetPath } from '../utils/assetUtils';
 
 export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isMuted, setIsMuted] = useState(false);
@@ -20,9 +21,11 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const bgmTracks = {
-        title: (version: GameVersion) => `/music/${getVersionPrefix(version)}-opening.mp3`,
-        battle: (version: GameVersion) => `/music/${getVersionPrefix(version)}-battle.mp3`,
-        map: (version: GameVersion) => `/music/${getVersionPrefix(version)}-field.mp3`
+        title: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-opening.mp3`),
+        battle: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-battle.mp3`),
+        map: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-field.mp3`),
+        boss: () => getAssetPath('/music/boss.mp3'), // Version-independent
+        practice: () => getAssetPath('/music/practice.mp3'), // Version-independent
     };
 
     const toggleMute = () => {
@@ -39,10 +42,31 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     }, [isMuted]);
 
+    // Pause/Resume BGM when page visibility changes (background/foreground)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (bgmRef.current) {
+                if (document.hidden) {
+                    bgmRef.current.pause();
+                } else {
+                    bgmRef.current.play().catch(e => console.warn('Resume play failed:', e));
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
     const currentTrackRef = useRef<string | null>(null);
 
-    const playBgm = (track: 'title' | 'battle' | 'map') => {
-        const src = bgmTracks[track](profile.currentVersion);
+    const playBgm = (track: 'title' | 'battle' | 'map' | 'boss' | 'practice') => {
+        // Boss and practice tracks are version-independent
+        const src = (track === 'boss' || track === 'practice')
+            ? bgmTracks[track]()
+            : bgmTracks[track](profile.currentVersion);
 
         // If the same track is already playing, do nothing
         if (currentTrackRef.current === src && bgmRef.current && !bgmRef.current.paused) {
@@ -71,9 +95,19 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentTrackRef.current = src;
     };
 
-    // Synthesize SFX using Web Audio API
-    const playSfx = (effect: 'select' | 'hit' | 'win' | 'evolve' | 'mistake' | 'critical') => {
-        if (isMuted || !audioContextRef.current) return;
+    // Synthesize SFX using Web Audio API (or play from file for certain effects)
+    const playSfx = (effect: 'select' | 'hit' | 'win' | 'evolve' | 'mistake' | 'critical' | 'boss_siren') => {
+        if (isMuted) return;
+
+        // For boss_siren, play from audio file
+        if (effect === 'boss_siren') {
+            const audio = new Audio(getAssetPath('/sfx/boss_siren.mp3'));
+            audio.volume = 0.7;
+            audio.play().catch(e => console.warn('SFX play failed:', e));
+            return;
+        }
+
+        if (!audioContextRef.current) return;
 
         const ctx = audioContextRef.current;
         const osc = ctx.createOscillator();
@@ -146,8 +180,17 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
+    // Stop current BGM
+    const stopBgm = () => {
+        if (bgmRef.current) {
+            bgmRef.current.pause();
+            bgmRef.current = null;
+        }
+        currentTrackRef.current = null;
+    };
+
     return (
-        <SoundContext.Provider value={{ isMuted, toggleMute, playBgm, playSfx }}>
+        <SoundContext.Provider value={{ isMuted, toggleMute, playBgm, stopBgm, playSfx }}>
             {children}
             {/* Global Mute Button Overlay */}
             <button
