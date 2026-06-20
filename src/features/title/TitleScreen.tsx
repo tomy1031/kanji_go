@@ -57,7 +57,7 @@ const TitleScreen: React.FC<TitleScreenProps> = ({ version, onStart, onBack }) =
 
     return (
         <div
-            className="w-full h-screen bg-gray-900 bg-cover bg-center flex flex-col items-center justify-center relative overflow-hidden"
+            className="w-full h-dvh bg-gray-900 bg-cover bg-center flex flex-col items-center justify-center relative overflow-y-auto"
             style={{ backgroundImage: theme.bgImage ? `url(${theme.bgImage})` : undefined }}
         >
             <div className="absolute inset-0 bg-black/40" /> {/* Overlay */}

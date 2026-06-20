@@ -127,7 +127,7 @@ function App() {
 
   return (
     <SoundProvider>
-      <div className="w-full h-screen bg-gray-900 text-white font-sans overflow-hidden">
+      <div className="w-full h-dvh bg-gray-900 text-white font-sans overflow-hidden">
         {scene === 'PRELOAD' && (
           <AssetPreloader onComplete={handlePreloadComplete}>
             <div />

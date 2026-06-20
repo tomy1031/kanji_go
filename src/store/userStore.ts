@@ -5,6 +5,7 @@ import { getLevelFromExp } from '../lib/levelUtils';
 import { getAllKanji } from '../lib/kanjiUtils';
 import { MONSTER_DB } from '../lib/evolutionUtils';
 import { getMetaMonsterForStage } from '../lib/enemyUtils';
+import { PRACTICE_MASTERY_COUNT } from '../lib/constants';
 
 interface UserStore extends UserState {
     setProfile: (profile: Partial<UserState['profile']>) => void;
@@ -148,7 +149,7 @@ export const useUserStore = create<UserStore>()(
                     const newPracticeCount = (currentProgress.practiceCount || 0) + 1;
                     let status = currentProgress.status;
 
-                    if (newPracticeCount >= 20 && status !== 'mastered') {
+                    if (newPracticeCount >= PRACTICE_MASTERY_COUNT && status !== 'mastered') {
                         status = 'mastered';
                     } else if (status === 'new') {
                         status = 'learning';
@@ -187,7 +188,7 @@ export const useUserStore = create<UserStore>()(
                             interval: 1,
                             streak: 1,
                             masteryCount: 1,
-                            practiceCount: 20, // Force practice count to 20 if manually mastered
+                            practiceCount: PRACTICE_MASTERY_COUNT, // Force to mastery threshold if manually mastered
                         },
                     },
                 })),
@@ -257,7 +258,7 @@ export const useUserStore = create<UserStore>()(
                 // Check if all kanji in this chapter are mastered (practiceCount >= 20)
                 const allMastered = stageKanji.length > 0 && stageKanji.every((k: any) => {
                     const progress = state.progress[k.id];
-                    return progress && (progress.practiceCount || 0) >= 20;
+                    return progress && (progress.practiceCount || 0) >= PRACTICE_MASTERY_COUNT;
                 });
 
                 if (!allMastered) return [];
@@ -301,7 +302,7 @@ export const useUserStore = create<UserStore>()(
                 // Check mastery (Practice Count >= 20)
                 const allMastered = stageKanji.length > 0 && stageKanji.every((k: any) => {
                     const progress = state.progress[k.id];
-                    return progress && (progress.practiceCount || 0) >= 20;
+                    return progress && (progress.practiceCount || 0) >= PRACTICE_MASTERY_COUNT;
                 });
 
                 if (!allMastered) return null;
@@ -369,7 +370,7 @@ export const useUserStore = create<UserStore>()(
                     newProgress[k.id] = {
                         ...current,
                         practiceCount: count,
-                        status: count >= 20 ? 'mastered' : current.status === 'new' && count > 0 ? 'learning' : current.status
+                        status: count >= PRACTICE_MASTERY_COUNT ? 'mastered' : current.status === 'new' && count > 0 ? 'learning' : current.status
                     };
                 });
 

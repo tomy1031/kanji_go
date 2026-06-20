@@ -64,7 +64,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
     const chapters = Array.from(new Set(stages.map(s => s.chapter))).sort((a, b) => a - b);
 
     return (
-        <div className="w-full h-screen bg-[#2c1810] relative overflow-hidden flex flex-col">
+        <div className="w-full h-dvh bg-[#2c1810] relative overflow-hidden flex flex-col">
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-20 bg-[url('/kanji_go/textures/wood-pattern.png')]" />
 

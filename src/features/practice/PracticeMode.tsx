@@ -3,6 +3,7 @@ import { useUserStore } from '../../store/userStore';
 import { getAllKanji } from '../../lib/kanjiUtils';
 import { getStages } from '../../lib/stageUtils';
 import { MONSTER_DB } from '../../lib/evolutionUtils';
+import { PRACTICE_MASTERY_COUNT } from '../../lib/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetPath } from '../../utils/assetUtils';
 import KanjiWriterCanvas, { type KanjiWriterHandle } from '../../components/KanjiWriterCanvas';
@@ -35,8 +36,8 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
         const item = progress[k.id];
         // Mastery in Practice Mode is defined by practiceCount >= 20
         const practiceCount = item ? (item.practiceCount || 0) : 0;
-        const isMastered = practiceCount >= 20;
-        const isLearning = practiceCount > 0 && practiceCount < 20;
+        const isMastered = practiceCount >= PRACTICE_MASTERY_COUNT;
+        const isLearning = practiceCount > 0 && practiceCount < PRACTICE_MASTERY_COUNT;
 
         // Stage Filter - now using composite world-order key
         // For BOSS stages (order 4), show all kanji from that world (order 1-3)
@@ -123,7 +124,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
 
         const item = progress[targetKanji.id];
         const practiceCount = item ? (item.practiceCount || 0) : 0;
-        const isMastered = practiceCount >= 20;
+        const isMastered = practiceCount >= PRACTICE_MASTERY_COUNT;
 
         const currentIndex = filteredKanji.findIndex(k => k.id === practiceTarget);
         const hasPrevious = currentIndex > 0;
@@ -133,7 +134,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
         const exampleDisplay = targetKanji.exampleSentence || '';
 
         return (
-            <div className="w-full h-screen bg-gray-900 text-white flex flex-col relative overflow-hidden">
+            <div className="w-full h-dvh bg-gray-900 text-white flex flex-col relative overflow-hidden">
                 {/* Background */}
                 <div
                     className="absolute inset-0 bg-cover bg-center opacity-30"
@@ -219,7 +220,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                     <div className="mt-8 bg-black/50 px-6 py-3 rounded-xl border border-gray-700 text-center">
                         <div className="text-gray-400 text-sm mb-1">PRACTICE COUNT</div>
                         <div className={`text-3xl font-black ${isMastered ? 'text-yellow-400' : 'text-white'}`}>
-                            {practiceCount} <span className="text-lg text-gray-500">/ 20</span>
+                            {practiceCount} <span className="text-lg text-gray-500">/ {PRACTICE_MASTERY_COUNT}</span>
                         </div>
                         {isMastered && (
                             <div className="text-yellow-400 text-xs font-bold mt-1">MASTERED!</div>
@@ -325,8 +326,8 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                         {filteredKanji.map((kanji) => {
                             const item = progress[kanji.id];
                             const practiceCount = item ? (item.practiceCount || 0) : 0;
-                            const isMastered = practiceCount >= 20;
-                            const isLearning = practiceCount > 0 && practiceCount < 20;
+                            const isMastered = practiceCount >= PRACTICE_MASTERY_COUNT;
+                            const isLearning = practiceCount > 0 && practiceCount < PRACTICE_MASTERY_COUNT;
                             const isUnlearned = practiceCount === 0;
 
                             return (
@@ -374,11 +375,11 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                                         <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                                             <div
                                                 className={`h-full transition-all duration-500 ${isMastered ? 'bg-yellow-500' : 'bg-cyan-500'}`}
-                                                style={{ width: `${Math.min(100, (practiceCount / 20) * 100)}%` }}
+                                                style={{ width: `${Math.min(100, (practiceCount / PRACTICE_MASTERY_COUNT) * 100)}%` }}
                                             />
                                         </div>
                                         <div className="text-right text-xs text-gray-400 mt-1">
-                                            {practiceCount} / 20
+                                            {practiceCount} / {PRACTICE_MASTERY_COUNT}
                                         </div>
                                     </div>
                                 </motion.button>
