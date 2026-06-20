@@ -19,7 +19,7 @@ const starters = [
     {
         id: 'starter_water',
         name: 'Mizuku',
-        element: ElementType.AQUA,
+        element: ElementType.WATER,
         description: 'A calm droplet that flows like water.',
         color: 'from-blue-500 to-cyan-600',
         icon: '💧'

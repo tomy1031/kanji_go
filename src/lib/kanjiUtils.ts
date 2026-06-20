@@ -1,6 +1,6 @@
 import { type KanjiData, type ElementType, type GameVersion } from '../types';
 import kanjiMasterRaw from '../data/kanji_master.csv?raw';
-import stageKanjiRaw from '../data/stage_kanji.csv?raw';
+
 
 export const parseKanjiData = (): KanjiData[] => {
     const lines = kanjiMasterRaw.trim().split('\n');
@@ -18,8 +18,10 @@ export const parseKanjiData = (): KanjiData[] => {
             meanings: values[6].split('|'),
             strokes: parseInt(values[7]),
             tags: values[8].split('|'),
-            stage: parseInt(values[9]),
-            isBoss: values[10] === 'true'
+            world: values[9] ? parseInt(values[9]) : undefined,
+            order: values[10] ? parseInt(values[10]) : undefined,
+            exampleSentence: values[11],
+            exampleReading: values[12]
         } as KanjiData;
     });
 };
@@ -28,20 +30,10 @@ export const KANJI_DB = parseKanjiData();
 
 export const getAllKanji = (): KanjiData[] => KANJI_DB;
 
-export const getKanjiForStage = (stageId: number): KanjiData[] => {
-    const lines = stageKanjiRaw.trim().split('\n');
-    const stageLine = lines.slice(1).find(line => {
-        const [id] = line.split(',');
-        return parseInt(id) === stageId;
-    });
+import { getStageKanji } from './stageUtils';
 
-    if (stageLine) {
-        const [, kanjiIds] = stageLine.split(',');
-        const ids = kanjiIds.split('|');
-        return KANJI_DB.filter(k => ids.includes(k.id));
-    }
-
-    return KANJI_DB.filter(k => k.stage === stageId);
+export const getKanjiForStage = (world: number, order: number, level: GameVersion): KanjiData[] => {
+    return getStageKanji(world, order, level);
 };
 
 export const getKanjiById = (id: string): KanjiData | undefined => {

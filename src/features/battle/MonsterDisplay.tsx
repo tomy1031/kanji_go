@@ -5,6 +5,7 @@ import { ElementType } from '../../types';
 interface MonsterDisplayProps {
     name: string;
     element: ElementType;
+    weakness?: ElementType;
     level: number;
     hp: number;
     maxHp: number;
@@ -17,13 +18,10 @@ interface MonsterDisplayProps {
 const getElementColor = (element: ElementType) => {
     switch (element) {
         case ElementType.FIRE: return 'bg-red-500';
-        case ElementType.AQUA: return 'bg-blue-500';
+        case ElementType.WATER: return 'bg-blue-500';
         case ElementType.NATURE: return 'bg-green-500';
-        case ElementType.METAL: return 'bg-gray-500';
         case ElementType.LIGHT: return 'bg-yellow-400';
-        case ElementType.LIFE: return 'bg-pink-500';
-        case ElementType.CHRONO: return 'bg-purple-500';
-        case ElementType.MAGIC: return 'bg-indigo-500';
+        case ElementType.DARK: return 'bg-purple-900';
         case ElementType.BOSS: return 'bg-black';
         default: return 'bg-gray-400';
     }
@@ -32,6 +30,7 @@ const getElementColor = (element: ElementType) => {
 const MonsterDisplay: React.FC<MonsterDisplayProps> = ({
     name,
     element,
+    weakness,
     level,
     hp,
     maxHp,
@@ -42,6 +41,18 @@ const MonsterDisplay: React.FC<MonsterDisplayProps> = ({
 }) => {
     const hpPercentage = (hp / maxHp) * 100;
     // const colorClass = getElementColor(element);
+
+    const getIcon = (type: ElementType) => {
+        switch (type) {
+            case 'FIRE': return '🔥';
+            case 'WATER': return '💧';
+            case 'NATURE': return '🌿';
+            case 'LIGHT': return '✨';
+            case 'DARK': return '🌑';
+            case 'BOSS': return '👿';
+            default: return '❓';
+        }
+    };
 
     return (
         <div className="flex flex-col items-center justify-center p-4">
@@ -66,15 +77,25 @@ const MonsterDisplay: React.FC<MonsterDisplayProps> = ({
                     ) : (
                         <div className={`w-full h-full rounded-full ${getElementColor(element)} flex items-center justify-center shadow-lg border-4 border-white/20`}>
                             <span className="text-4xl">
-                                {element === ElementType.FIRE ? '🔥' : element === ElementType.AQUA ? '💧' : element === ElementType.NATURE ? '🌿' : '👾'}
+                                {getIcon(element)}
                             </span>
                         </div>
                     )}
 
-                    {/* Element Badge */}
-                    <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-gray-800 border-2 border-white flex items-center justify-center text-xs">
-                        {element.charAt(0)}
+                    {/* Attack Element Badge (Left Bottom) */}
+                    <div className="absolute -bottom-2 -left-2 w-8 h-8 rounded-full bg-gray-800 border-2 border-red-500 flex items-center justify-center text-sm" title="Attack Element">
+                        {getIcon(element)}
                     </div>
+
+                    {/* Weakness Element Badge (Right Bottom) */}
+                    {weakness && (
+                        <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-gray-800 border-2 border-blue-500 flex items-center justify-center text-sm" title="Weakness">
+                            <div className="relative">
+                                <span className="opacity-50 text-xs absolute inset-0 flex items-center justify-center">🛡️</span>
+                                <span className="relative z-10 text-xs">{getIcon(weakness)}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Hit Effect Overlay */}

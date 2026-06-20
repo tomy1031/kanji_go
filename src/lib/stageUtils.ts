@@ -1,55 +1,70 @@
 import { getAllKanji } from './kanjiUtils';
-
+import { GameVersion } from '../types';
 
 export interface StageData {
-    id: number;
+    world: number;           // World number (1, 2, 3...)
+    order: number;           // Order within world (1, 2, 3, 4 where 4=BOSS)
     name: string;
     kanjiCount: number;
     isBoss: boolean;
     status: 'locked' | 'unlocked' | 'cleared';
+    chapter: number;         // Same as world for display
+    displayNumber: string;   // "1", "2", "3", "BOSS"
 }
 
-export const getStages = (maxUnlockedStage: number): StageData[] => {
-    const allKanji = getAllKanji();
-    const stages: Record<number, StageData> = {};
+export const getStages = (maxUnlockedStage: number, level: GameVersion): StageData[] => {
+    const allKanji = getAllKanji().filter(k => k.level === level);
 
-    // Group kanji by stage
-    allKanji.forEach(kanji => {
-        if (!kanji.stage) return;
+    // Determine max available worlds based on kanji world count
+    const maxWorld = Math.max(...allKanji.map(k => k.world || 0));
 
-        if (!stages[kanji.stage]) {
-            stages[kanji.stage] = {
-                id: kanji.stage,
-                name: `Stage ${kanji.stage}`,
+    const stages: StageData[] = [];
+    let logicStageIndex = 1; // For tracking unlock status
+
+    for (let world = 1; world <= maxWorld; world++) {
+        // Orders 1-3 are normal stages, 4 is boss
+        for (let order = 1; order <= 4; order++) {
+            const isBoss = order === 4;
+
+            let status: StageData['status'] = 'locked';
+            if (logicStageIndex < maxUnlockedStage) {
+                status = 'cleared';
+            } else if (logicStageIndex === maxUnlockedStage) {
+                status = 'unlocked';
+            }
+
+            stages.push({
+                world,
+                order,
+                name: isBoss ? `Chapter ${world} BOSS` : `Stage ${world}-${order}`,
                 kanjiCount: 0,
-                isBoss: false,
-                status: 'locked'
-            };
+                isBoss,
+                status,
+                chapter: world,
+                displayNumber: isBoss ? "BOSS" : `${order}`
+            });
+
+            logicStageIndex++;
         }
-        stages[kanji.stage].kanjiCount++;
-        if (kanji.isBoss) {
-            stages[kanji.stage].isBoss = true;
-        }
-    });
+    }
 
-    // Determine status
-    const stageIds = Object.keys(stages).map(Number).sort((a, b) => a - b);
-
-    stageIds.forEach((id) => {
-        const stage = stages[id];
-
-        if (id < maxUnlockedStage) {
-            stage.status = 'cleared';
-        } else if (id === maxUnlockedStage) {
-            stage.status = 'unlocked';
-        } else {
-            stage.status = 'locked';
-        }
-    });
-
-    return Object.values(stages);
+    return stages;
 };
 
-export const getStageKanji = (stageId: number) => {
-    return getAllKanji().filter(k => k.stage === stageId);
+export const getStageKanji = (world: number, order: number, level: GameVersion) => {
+    // For BOSS stages (order=4), review all kanji from orders 1-3 of the same world
+    const targetOrders = order === 4 ? [1, 2, 3] : [order];
+
+    console.log(`Getting kanji for ${level} World ${world} Order ${order}${order === 4 ? ' (BOSS)' : ''}`);
+
+    const result = getAllKanji().filter(k =>
+        k.level === level &&
+        k.world === world &&
+        k.order &&
+        targetOrders.includes(k.order)
+    );
+
+    console.log(`Found ${result.length} kanji`, result.map(k => ({ char: k.char, world: k.world, order: k.order })));
+
+    return result;
 };
