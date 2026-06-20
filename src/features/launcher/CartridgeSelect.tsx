@@ -100,7 +100,7 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
 
     return (
         <div
-            className="w-full h-screen bg-[#0f172a] text-white font-sans overflow-hidden flex flex-col relative fixed inset-0"
+            className="w-full h-dvh bg-[#0f172a] text-white font-sans overflow-hidden flex flex-col relative fixed inset-0"
             onClick={handleInteraction}
         >
             {/* Tap to Start Overlay */}

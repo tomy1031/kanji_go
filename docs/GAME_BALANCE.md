@@ -61,7 +61,7 @@ Exponential curve requiring more EXP per level.
 
 ## Meta Monsters
 Unlockable partners that provide specific elemental advantages.
-- **Unlock Condition**: Complete all Kanji practice in a stage set (Order 1, 2, 3) times 20.
+- **Unlock Condition**: Complete all Kanji practice in a stage set (Order 1, 2, 3) — `PRACTICE_MASTERY_COUNT` (10) correct writes each. See `src/lib/constants.ts`.
 - **Rewards**: Specific counter-element monsters for the next Boss.
 
 ### N5 Meta Monsters

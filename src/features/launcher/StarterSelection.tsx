@@ -48,7 +48,7 @@ const StarterSelection: React.FC<StarterSelectionProps> = ({ onSelect }) => {
     };
 
     return (
-        <div className="w-full h-screen bg-gray-900 text-white flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="w-full h-dvh bg-gray-900 text-white flex flex-col items-center justify-center relative overflow-y-auto py-8">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse" />
 
             <motion.h1

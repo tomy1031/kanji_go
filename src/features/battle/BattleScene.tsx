@@ -174,8 +174,10 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
 
     setCurrentEnemy(enemy);
 
-    // Recalculate enemy stats based on the selected enemy
-    const initialEnemyStats = getMonsterStats(enemy.id, stats.playerLevel);
+    // Initialize enemy HP from the stage-defined enemy level (must match
+    // maxEnemyHp, which also uses stageEnemyLevel) so the HP bar starts full.
+    const stageLevelForInit = getEnemyLevelForStage(world, order, profile.currentVersion);
+    const initialEnemyStats = getMonsterStats(enemy.id, stageLevelForInit);
     setEnemyHp(initialEnemyStats.hp);
 
     const kanjis = getKanjiForStage(world, order, profile.currentVersion);
