@@ -4,6 +4,7 @@ import { getAllKanji } from '../../lib/kanjiUtils';
 import { getStages } from '../../lib/stageUtils';
 import { MONSTER_DB } from '../../lib/evolutionUtils';
 import { PRACTICE_MASTERY_COUNT } from '../../lib/constants';
+import { preloadCharData } from '../../lib/kanjiStrokeLoader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetPath } from '../../utils/assetUtils';
 import KanjiWriterCanvas, { type KanjiWriterHandle } from '../../components/KanjiWriterCanvas';
@@ -102,6 +103,17 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
     const handleGuideClick = () => {
         canvasRef.current?.animateStroke();
     };
+
+    // Preload stroke data around the current practice target so navigating
+    // prev/next renders instantly (the shared cache keeps them for the session).
+    useEffect(() => {
+        if (!practiceTarget) return;
+        const idx = filteredKanji.findIndex(k => k.id === practiceTarget);
+        if (idx < 0) return;
+        const window = filteredKanji.slice(Math.max(0, idx - 1), idx + 6).map(k => k.char);
+        preloadCharData(window);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [practiceTarget]);
 
     const handleNextKanji = () => {
         const currentIndex = filteredKanji.findIndex(k => k.id === practiceTarget);
