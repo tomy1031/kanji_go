@@ -2,7 +2,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import HanziWriter from 'hanzi-writer';
 import { getDebugParams } from './DebugMode';
-import { getAssetPath } from '../utils/assetUtils';
+import { loadCharData } from '../lib/kanjiStrokeLoader';
 
 interface KanjiWriterCanvasProps {
     char: string;
@@ -37,7 +37,6 @@ const KanjiWriterCanvas = forwardRef<KanjiWriterHandle, KanjiWriterCanvasProps>(
     const sampleRef = useRef<HTMLDivElement>(null);
     const isQuizActiveRef = useRef(false);
     const showSampleRef = useRef(showSample);
-    const charDataCacheRef = useRef<Record<string, unknown> | null>(null);
 
     // Refs for callbacks to avoid re-initializing HanziWriter when callbacks change
     const callbacksRef = useRef({ onCorrectStroke, onMistake, onComplete });
@@ -113,56 +112,9 @@ const KanjiWriterCanvas = forwardRef<KanjiWriterHandle, KanjiWriterCanvasProps>(
         });
     };
 
-    // Custom char data loader - prioritize local data, fallback to CDN
-    // Local data from: github.com/mnako/hanzi-writer-data-ja (3762 kanji)
-
-
-    // Custom char data loader - prioritize local data, fallback to CDN
-    // Local data from: github.com/mnako/hanzi-writer-data-ja (3762 kanji)
-    const charDataLoader = async (character: string) => {
-        // Return cached data if available
-        if (charDataCacheRef.current) {
-            return charDataCacheRef.current;
-        }
-
-        const encoded = encodeURIComponent(character);
-
-        // Try local data first (instant, no network latency)
-        try {
-            const localUrl = getAssetPath(`/kanji-data/${encoded}.json`);
-            const response = await fetch(localUrl);
-            if (response.ok) {
-                const data = await response.json();
-                charDataCacheRef.current = data;
-                return data;
-            }
-        } catch {
-            // Local not found, try CDN
-        }
-
-        // CDN fallback sources for characters not in local data
-        const cdnSources = [
-            `https://cdn.jsdelivr.net/npm/hanzi-writer-data-jp@0.1.0/${encoded}.json`, // Detailed version
-            `https://cdn.jsdelivr.net/npm/hanzi-writer-data@latest/${encoded}.json`, // Chinese fallback, sometimes valid for Kanji
-            `https://raw.githubusercontent.com/mnako/hanzi-writer-data-ja/master/data/${encoded}.json`,
-        ];
-
-        for (const url of cdnSources) {
-            try {
-                const response = await fetch(url);
-                if (response.ok) {
-                    const data = await response.json();
-                    charDataCacheRef.current = data;
-                    return data;
-                }
-            } catch {
-                // Silent fail, try next source
-            }
-        }
-
-        console.warn(`No stroke data available for: ${character}`);
-        return null;
-    };
+    // Stroke data is loaded via the shared, session-wide cache + preloader
+    // (src/lib/kanjiStrokeLoader.ts): local bundle first, CDN fallback, and
+    // results are reused across characters/instances instead of re-fetched.
 
     // Main effect for quiz HanziWriter
     useEffect(() => {
@@ -170,11 +122,10 @@ const KanjiWriterCanvas = forwardRef<KanjiWriterHandle, KanjiWriterCanvasProps>(
         if (!target) return;
 
         target.innerHTML = '';
-        charDataCacheRef.current = null;
 
         const initHanziWriter = async () => {
             try {
-                const testData = await charDataLoader(char);
+                const testData = await loadCharData(char);
                 if (!testData) {
                     showFallbackUI(target);
                     return;
@@ -273,7 +224,7 @@ const KanjiWriterCanvas = forwardRef<KanjiWriterHandle, KanjiWriterCanvasProps>(
         }
 
         const initSampleWriter = async () => {
-            const data = await charDataLoader(char);
+            const data = await loadCharData(char);
             if (!data) return;
 
             sampleWriterRef.current = HanziWriter.create(sampleTarget, char, {
