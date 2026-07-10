@@ -1,54 +1,36 @@
-import Peer from 'peerjs';
-import type { DataConnection } from 'peerjs';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { supabase } from '../../lib/supabaseClient';
 import type { BattleEvent } from './types';
 import { BattleEventType } from './types';
 
 type EventCallback = (event: BattleEvent) => void;
+type Role = 'host' | 'guest';
 
-// ICE servers for P2P connectivity
-export const PEER_CONFIG = {
-    debug: 2, // Enable PeerJS debug logging
-    config: {
-        iceTransportPolicy: 'all',
-        iceServers: [
-            // OpenRelay (Free TURN) - Essential for mobile networks (Symmetric NAT)
-            {
-                urls: 'turn:openrelay.metered.ca:80',
-                username: 'openrelayproject',
-                credential: 'openrelayproject',
-                password: 'openrelayproject'
-            },
-            {
-                urls: 'turn:openrelay.metered.ca:443',
-                username: 'openrelayproject',
-                credential: 'openrelayproject',
-                password: 'openrelayproject'
-            },
-            {
-                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                username: 'openrelayproject',
-                credential: 'openrelayproject',
-                password: 'openrelayproject'
-            },
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' }
-        ]
-    }
-};
+const channelName = (roomId: string) => `kanjigo-room-${roomId}`;
 
+/**
+ * Online transport for battles.
+ *
+ * Previously this used PeerJS (WebRTC P2P), which failed in practice because
+ * the free signaling broker and anonymous TURN servers are unreliable, so
+ * cross-network (mobile / symmetric NAT) connections rarely established.
+ *
+ * It now uses Supabase Realtime as a free cloud relay: both players join the
+ * same channel (named after the room id), presence tells us when the opponent
+ * is connected, and battle events are exchanged via channel broadcast. There is
+ * no NAT traversal and no TURN, so it connects reliably on any network. The
+ * public API is unchanged.
+ */
 class NetworkManager {
     private static instance: NetworkManager;
-    private peer: Peer | null = null;
-    private connection: DataConnection | null = null;
+
+    private channel: RealtimeChannel | null = null;
     private eventCallbacks: EventCallback[] = [];
     private roomId: string | null = null;
-    private isHost: boolean = false;
-
-    // Use the exported config
-    private readonly PEER_CONFIG = PEER_CONFIG;
+    private isHost = false;
+    private subscribed = false;
+    private otherPresent = false;
+    private connectionLost = false;
 
     private constructor() { }
 
@@ -59,155 +41,169 @@ class NetworkManager {
         return NetworkManager.instance;
     }
 
+    private otherRole(): Role {
+        return this.isHost ? 'guest' : 'host';
+    }
+
+    private hasRole(role: Role): boolean {
+        if (!this.channel) return false;
+        const state = this.channel.presenceState() as Record<string, Array<{ role?: string }>>;
+        return Object.values(state).some((entries) => entries.some((e) => e.role === role));
+    }
+
+    private recomputePresence(): void {
+        const wasPresent = this.otherPresent;
+        this.otherPresent = this.hasRole(this.otherRole());
+        if (wasPresent && !this.otherPresent) {
+            // Opponent left the room
+            this.connectionLost = true;
+            this.sendDisconnectEvent();
+        }
+    }
+
+    private attachHandlers(channel: RealtimeChannel): void {
+        channel.on('broadcast', { event: 'battle' }, ({ payload }) => {
+            const event = payload as BattleEvent;
+            this.eventCallbacks.forEach((cb) => {
+                try {
+                    cb(event);
+                } catch (error) {
+                    console.error('[NetworkManager] Error in event callback:', error);
+                }
+            });
+        });
+        channel.on('presence', { event: 'sync' }, () => this.recomputePresence());
+        channel.on('presence', { event: 'join' }, () => this.recomputePresence());
+        channel.on('presence', { event: 'leave' }, () => this.recomputePresence());
+    }
+
     /**
-     * Create a new room (become host)
-     * @param customRoomId Optional custom room ID (e.g., player's permanent ID)
-     * Returns the room ID that others can use to join
+     * Create a new room (become host). Resolves once the room channel is ready;
+     * the guest may join afterwards (detected via presence).
      */
     public async createRoom(customRoomId?: string): Promise<string> {
-        // Ensure clean state
         this.disconnect();
 
-        return new Promise((resolve, reject) => {
-            try {
-                // Use custom room ID if provided, otherwise generate one
-                const roomId = customRoomId || this.generateRoomId();
+        const roomId = customRoomId || this.generateRoomId();
+        this.isHost = true;
+        this.roomId = roomId;
+        this.connectionLost = false;
 
-                this.peer = new Peer(roomId, this.PEER_CONFIG);
-                this.isHost = true;
-                this.roomId = roomId;
+        const channel = supabase.channel(channelName(roomId), {
+            config: { broadcast: { self: false }, presence: { key: 'host' } },
+        });
+        this.channel = channel;
+        this.attachHandlers(channel);
 
-                this.peer.on('open', () => {
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('接続がタイムアウトしました')), 15000);
+            channel.subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    clearTimeout(timeout);
+                    this.subscribed = true;
+                    channel.track({ role: 'host', roomId });
                     console.log('[NetworkManager] Room created:', roomId);
-                    resolve(roomId);
-                });
+                    resolve();
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    clearTimeout(timeout);
+                    reject(err || new Error('接続に失敗しました'));
+                }
+            });
+        });
 
-                console.log('[NetworkManager] Host: Setting up connection listener for incoming guests');
-                this.peer.on('connection', (conn: DataConnection) => {
-                    console.log('[NetworkManager] Host: Guest connecting (signaling):', conn.peer);
+        return roomId;
+    }
 
-                    // Debug: Monitor ICE connection state
-                    const pc = (conn as any).peerConnection as RTCPeerConnection | undefined;
-                    if (pc) {
-                        console.log('[NetworkManager] ICE state:', pc.iceConnectionState);
-                        pc.oniceconnectionstatechange = () => {
-                            console.log('[NetworkManager] ICE state changed:', pc.iceConnectionState);
-                            if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-                                console.error('[NetworkManager] ICE connection failed (likely NAT issue)');
-                                this.sendDisconnectEvent(); // Notify app
-                            }
-                        };
-                        pc.onicegatheringstatechange = () => {
-                            console.log('[NetworkManager] ICE gathering state:', pc.iceGatheringState);
-                        };
-                        pc.onicecandidate = (e) => {
-                            if (e.candidate) {
-                                console.log('[NetworkManager] ICE candidate:', e.candidate.type, e.candidate.address);
-                            }
-                        };
-                    }
+    /**
+     * Join an existing room (become guest). Resolves once the host is detected
+     * in the room; rejects if no host appears (wrong code / host left).
+     */
+    public async joinRoom(roomId: string): Promise<void> {
+        this.disconnect();
 
-                    // Timeout for data channel opening
-                    const timeout = setTimeout(() => {
-                        console.error('[NetworkManager] Host: Data channel open timeout');
-                    }, 45000); // Extended to 45s
+        this.isHost = false;
+        this.roomId = roomId;
+        this.connectionLost = false;
 
-                    // Wait for data channel to actually open before considering connected
-                    conn.on('open', () => {
-                        clearTimeout(timeout);
-                        console.log('[NetworkManager] Guest data channel opened:', conn.peer);
-                        this.connection = conn;
-                        this.setupConnectionHandlers(conn);
-                    });
+        const channel = supabase.channel(channelName(roomId), {
+            config: { broadcast: { self: false }, presence: { key: 'guest' } },
+        });
+        this.channel = channel;
+        this.attachHandlers(channel);
 
-                    conn.on('error', (err) => {
-                        clearTimeout(timeout);
-                        console.error('[NetworkManager] Guest connection error:', err);
-                    });
-                });
+        await new Promise<void>((resolve, reject) => {
+            let settled = false;
+            const timeout = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                reject(new Error('ルームが見つかりません（相手がホストしていない可能性があります）'));
+            }, 15000);
 
-                this.peer.on('error', (err: Error) => {
-                    console.error('[NetworkManager] Peer error:', err);
-                    reject(err);
-                });
-            } catch (error) {
-                reject(error);
-            }
+            const checkHost = () => {
+                if (settled) return;
+                this.recomputePresence();
+                if (this.hasRole('host')) {
+                    settled = true;
+                    clearTimeout(timeout);
+                    console.log('[NetworkManager] Joined room, host present:', roomId);
+                    resolve();
+                }
+            };
+
+            channel.on('presence', { event: 'sync' }, checkHost);
+            channel.on('presence', { event: 'join' }, checkHost);
+
+            channel.subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    this.subscribed = true;
+                    channel.track({ role: 'guest', roomId });
+                    checkHost();
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeout);
+                    reject(err || new Error('接続に失敗しました'));
+                }
+            });
         });
     }
 
     /**
-     * Join an existing room (become guest)
+     * Check whether a room is currently online (host present) — used by the
+     * friend list to show online status. Non-invasive: joins presence only.
      */
-    public async joinRoom(roomId: string): Promise<void> {
-        // Ensure clean state
-        this.disconnect();
-
-        return new Promise((resolve, reject) => {
-            try {
-                // Pass undefined as first arg to let PeerJS generate an ID, while passing config options
-                this.peer = new Peer(undefined, this.PEER_CONFIG);
-                this.isHost = false;
-                this.roomId = roomId;
-
-                this.peer.on('open', () => {
-                    console.log('[NetworkManager] Connecting to room:', roomId);
-                    const conn = this.peer!.connect(roomId, {
-                        reliable: true
-                    });
-
-                    // Wait for connection to actually open
-                    const connectionPromise = new Promise<void>((resolve, reject) => {
-                        const timeout = setTimeout(() => {
-                            reject(new Error('Connection timed out'));
-                        }, 45000); // Extended to 45s
-
-                        conn.on('open', () => {
-                            clearTimeout(timeout);
-                            console.log('[NetworkManager] Connection fully opened');
-                            this.connection = conn;
-
-                            // Monitor ICE on Guest side too
-                            const pc = (conn as any).peerConnection as RTCPeerConnection | undefined;
-                            if (pc) {
-                                pc.oniceconnectionstatechange = () => {
-                                    console.log('[NetworkManager] Guest ICE state changed:', pc.iceConnectionState);
-                                    if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-                                        console.error('[NetworkManager] Guest ICE connection failed');
-                                        this.sendDisconnectEvent();
-                                    }
-                                };
-                            }
-
-                            this.setupConnectionHandlers(conn);
-                            resolve();
-                        });
-
-                        conn.on('error', (err) => {
-                            clearTimeout(timeout);
-                            console.error('[NetworkManager] Connection peer error:', err);
-                            reject(err);
-                        });
-                    });
-
-                    // Wait for connection
-                    connectionPromise.then(resolve).catch((err) => {
-                        // Cleanup if failed
-                        conn.close();
-                        reject(err);
-                    });
-
-                    // Fallback: setup generic error handler for immediate failures
-                    // this.connection = conn; // Don't set connection until opened
-                });
-
-                this.peer.on('error', (err: Error) => {
-                    console.error('[NetworkManager] Connection error:', err);
-                    reject(err);
-                });
-            } catch (error) {
-                reject(error);
-            }
+    public async checkRoomOnline(roomId: string, timeoutMs = 6000): Promise<boolean> {
+        return new Promise((resolve) => {
+            const probe = supabase.channel(channelName(roomId), {
+                config: { presence: { key: `probe-${Date.now()}` } },
+            });
+            let done = false;
+            const finish = (value: boolean) => {
+                if (done) return;
+                done = true;
+                try {
+                    supabase.removeChannel(probe);
+                } catch {
+                    // ignore
+                }
+                resolve(value);
+            };
+            const timeout = setTimeout(() => finish(false), timeoutMs);
+            const check = () => {
+                const state = probe.presenceState() as Record<string, Array<{ role?: string }>>;
+                const hostPresent = Object.values(state).some((entries) =>
+                    entries.some((e) => e.role === 'host')
+                );
+                if (hostPresent) {
+                    clearTimeout(timeout);
+                    finish(true);
+                }
+            };
+            probe.on('presence', { event: 'sync' }, check);
+            probe.on('presence', { event: 'join' }, check);
+            probe.subscribe((status) => {
+                if (status === 'SUBSCRIBED') check();
+            });
         });
     }
 
@@ -215,17 +211,11 @@ class NetworkManager {
      * Send a battle event to the opponent
      */
     public sendEvent(event: BattleEvent): void {
-        if (!this.connection || !this.connection.open) {
-            console.warn('[NetworkManager] Cannot send event: No active connection');
+        if (!this.channel || !this.subscribed) {
+            console.warn('[NetworkManager] Cannot send event: No active channel');
             return;
         }
-
-        try {
-            this.connection.send(event);
-            console.log('[NetworkManager] Sent event:', event.type);
-        } catch (error) {
-            console.error('[NetworkManager] Error sending event:', error);
-        }
+        this.channel.send({ type: 'broadcast', event: 'battle', payload: event });
     }
 
     /**
@@ -234,7 +224,7 @@ class NetworkManager {
     public onEvent(callback: EventCallback): () => void {
         this.eventCallbacks.push(callback);
         return () => {
-            this.eventCallbacks = this.eventCallbacks.filter(cb => cb !== callback);
+            this.eventCallbacks = this.eventCallbacks.filter((cb) => cb !== callback);
         };
     }
 
@@ -249,18 +239,17 @@ class NetworkManager {
      * Disconnect from current room
      */
     public disconnect(): void {
-        console.log('[NetworkManager] Disconnecting...');
-
-        if (this.connection) {
-            this.connection.close();
-            this.connection = null;
+        if (this.channel) {
+            try {
+                supabase.removeChannel(this.channel);
+            } catch {
+                // ignore
+            }
+            this.channel = null;
         }
-
-        if (this.peer) {
-            this.peer.destroy();
-            this.peer = null;
-        }
-
+        this.subscribed = false;
+        this.otherPresent = false;
+        this.connectionLost = false;
         this.roomId = null;
         this.isHost = false;
         this.eventCallbacks = [];
@@ -270,53 +259,18 @@ class NetworkManager {
      * Get current connection status
      */
     public getConnectionStatus(): 'idle' | 'connecting' | 'connected' | 'disconnected' {
-        if (!this.peer) return 'idle';
-        if (this.connection && this.connection.open) return 'connected';
-        if (this.peer.disconnected) return 'disconnected';
+        if (!this.channel) return 'idle';
+        if (this.connectionLost) return 'disconnected';
+        if (this.otherPresent) return 'connected';
         return 'connecting';
     }
 
-    /**
-     * Check if currently hosting a room
-     */
     public isHosting(): boolean {
         return this.isHost;
     }
 
-    /**
-     * Get current room ID
-     */
     public getRoomId(): string | null {
         return this.roomId;
-    }
-
-    private setupConnectionHandlers(conn: DataConnection): void {
-        conn.on('open', () => {
-            console.log('[NetworkManager] Connection established');
-        });
-
-        conn.on('data', (data: unknown) => {
-            console.log('[NetworkManager] Received event:', data);
-            const event = data as BattleEvent;
-
-            // Notify all registered callbacks
-            this.eventCallbacks.forEach(callback => {
-                try {
-                    callback(event);
-                } catch (error) {
-                    console.error('[NetworkManager] Error in event callback:', error);
-                }
-            });
-        });
-
-        conn.on('close', () => {
-            console.log('[NetworkManager] Connection closed');
-            this.sendDisconnectEvent();
-        });
-
-        conn.on('error', (err: Error) => {
-            console.error('[NetworkManager] Connection error:', err);
-        });
     }
 
     private sendDisconnectEvent(): void {
@@ -324,8 +278,7 @@ class NetworkManager {
             type: BattleEventType.DISCONNECT,
             timestamp: Date.now(),
         };
-
-        this.eventCallbacks.forEach(callback => {
+        this.eventCallbacks.forEach((callback) => {
             try {
                 callback(event);
             } catch (error) {

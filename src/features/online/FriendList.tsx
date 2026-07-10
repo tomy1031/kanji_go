@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUserStore } from '../../store/userStore';
 import { useOnlineStore } from './onlineStore';
-import { PEER_CONFIG } from './NetworkManager';
-import Peer from 'peerjs';
+import { networkManager } from './NetworkManager';
 
 interface FriendListProps {
     onStartBattle: (friendId: string) => void;
@@ -33,44 +32,13 @@ const FriendList: React.FC<FriendListProps> = ({ onStartBattle }) => {
     const myPlayerId = ensurePlayerId();
     console.log('[FriendList] My player ID:', myPlayerId);
 
-    // Ping a friend to check if they're online (hosting a room)
+    // Check if a friend is online (currently hosting a room) via Supabase presence.
     const pingFriend = useCallback(async (friendId: string): Promise<boolean> => {
-        return new Promise((resolve) => {
-            const timeout = setTimeout(() => {
-                try { tempPeer.destroy(); } catch { }
-                resolve(false);
-            }, 10000); // 10 second timeout
-
-            // Use robust STUN/TURN configuration from NetworkManager
-            const tempPeer = new Peer(undefined, PEER_CONFIG);
-
-            tempPeer.on('open', () => {
-                console.log('[FriendList] Ping: Connecting to', friendId);
-                const conn = tempPeer.connect(friendId);
-
-                conn.on('open', () => {
-                    console.log('[FriendList] Ping: SUCCESS -', friendId, 'is online');
-                    clearTimeout(timeout);
-                    conn.close();
-                    tempPeer.destroy();
-                    resolve(true);
-                });
-
-                conn.on('error', (err) => {
-                    console.log('[FriendList] Ping: Connection error', err);
-                    clearTimeout(timeout);
-                    try { tempPeer.destroy(); } catch { }
-                    resolve(false);
-                });
-            });
-
-            tempPeer.on('error', (err) => {
-                console.log('[FriendList] Ping: Peer error', err);
-                clearTimeout(timeout);
-                try { tempPeer.destroy(); } catch { }
-                resolve(false);
-            });
-        });
+        try {
+            return await networkManager.checkRoomOnline(friendId);
+        } catch {
+            return false;
+        }
     }, []);
 
     // Check friend online status
