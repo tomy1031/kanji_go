@@ -180,7 +180,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     preloadCharData(kanjis.map((k) => k.char));
 
     setBattleState("battle");
-  }, [world, order, profile.currentVersion, battleState, maxPlayerHp, currentPartner, stats.playerLevel, playBgm]);
+  }, [world, order, profile.currentVersion, battleState, maxPlayerHp, currentPartner, stats.playerLevel, playBgm, stopBgm, playSfx]);
 
   // Check for evolution
   useEffect(() => {

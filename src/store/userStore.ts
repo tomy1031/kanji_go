@@ -250,13 +250,13 @@ export const useUserStore = create<UserStore>()(
                 const world = stageId;
 
                 // Get all kanji from this world/chapter (order 1-3)
-                const stageKanji = allKanji.filter((k: any) =>
+                const stageKanji = allKanji.filter((k) =>
                     k.level === version &&
                     k.world === world
                 );
 
                 // Check if all kanji in this chapter are mastered (practiceCount >= 20)
-                const allMastered = stageKanji.length > 0 && stageKanji.every((k: any) => {
+                const allMastered = stageKanji.length > 0 && stageKanji.every((k) => {
                     const progress = state.progress[k.id];
                     return progress && (progress.practiceCount || 0) >= PRACTICE_MASTERY_COUNT;
                 });
@@ -266,13 +266,13 @@ export const useUserStore = create<UserStore>()(
                 // Find stage reward monsters that match this stage
                 // Format: STAGE:VERSION-WORLD (e.g., STAGE:N5-1)
                 const unlockKey = `STAGE:${version}-${world}`;
-                const rewardMonsters = Object.values(MONSTER_DB as any).filter((monster: any) => {
+                const rewardMonsters = Object.values(MONSTER_DB).filter((monster) => {
                     return monster.unlockCondition === unlockKey;
                 });
 
                 // Unlock the monsters and return their IDs
                 const newUnlocks: string[] = [];
-                rewardMonsters.forEach((monster: any) => {
+                rewardMonsters.forEach((monster) => {
                     if (!state.partners.unlockedSkins.includes(monster.id)) {
                         set((currentState) => ({
                             partners: {
@@ -292,7 +292,7 @@ export const useUserStore = create<UserStore>()(
 
                 // Get kanji for this specific stage (Logic from stageUtils.getStageKanji)
                 const targetOrders = order === 4 ? [1, 2, 3] : [order];
-                const stageKanji = allKanji.filter((k: any) =>
+                const stageKanji = allKanji.filter((k) =>
                     k.level === version &&
                     k.world === world &&
                     k.order &&
@@ -300,7 +300,7 @@ export const useUserStore = create<UserStore>()(
                 );
 
                 // Check mastery (Practice Count >= 20)
-                const allMastered = stageKanji.length > 0 && stageKanji.every((k: any) => {
+                const allMastered = stageKanji.length > 0 && stageKanji.every((k) => {
                     const progress = state.progress[k.id];
                     return progress && (progress.practiceCount || 0) >= PRACTICE_MASTERY_COUNT;
                 });
@@ -348,7 +348,7 @@ export const useUserStore = create<UserStore>()(
 
                 // Get kanji for this stage
                 const targetOrders = order === 4 ? [1, 2, 3] : [order];
-                const stageKanji = allKanji.filter((k: any) =>
+                const stageKanji = allKanji.filter((k) =>
                     k.level === version &&
                     k.world === world &&
                     k.order &&
@@ -357,7 +357,7 @@ export const useUserStore = create<UserStore>()(
 
                 const newProgress = { ...state.progress };
 
-                stageKanji.forEach((k: any) => {
+                stageKanji.forEach((k) => {
                     const current = newProgress[k.id] || {
                         status: 'new',
                         nextReview: 0,

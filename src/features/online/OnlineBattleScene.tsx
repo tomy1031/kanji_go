@@ -19,6 +19,10 @@ interface OnlineBattleSceneProps {
     onLeave: () => void;
 }
 
+// Module-scope clock helper: handleNetworkEvent only runs from network
+// callbacks (never during render), so reading the clock there is safe.
+const nowMs = () => Date.now();
+
 const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
     // Stores
     const {
@@ -103,13 +107,26 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
         playBgm('battle');
     }, [playBgm]);
 
+    // Track the transport-level connection (opponent presence). Polling keeps
+    // the handshake effect re-running until the opponent actually arrives —
+    // required for the symmetric passphrase match where both players can enter
+    // this scene before being paired.
+    const [netConnected, setNetConnected] = useState(false);
+    useEffect(() => {
+        const iv = setInterval(() => {
+            setNetConnected(networkManager.getConnectionStatus() === 'connected');
+        }, 800);
+        return () => clearInterval(iv);
+    }, []);
+
     // Heartbeat / Disconnect Detection (3 consecutive failed pings = disconnect)
-    const lastPingRef = useRef<number>(Date.now());
+    const lastPingRef = useRef<number>(0);
     const failedPingCountRef = useRef<number>(0);
     const MAX_FAILED_PINGS = 3;
 
     useEffect(() => {
         if (gameState !== 'BATTLE') return;
+        lastPingRef.current = Date.now();
 
         // Send ping and check response every 2 seconds
         const pingInterval = setInterval(() => {
@@ -158,8 +175,8 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
         let handshakeInterval: ReturnType<typeof setInterval> | null = null;
 
         // Guest logic: repeatedly send READY until Host replies (game starts)
-        // Only start handshake if we claim to be connected
-        if (!networkManager.isHosting() && gameState === 'WAITING' && networkManager.getConnectionStatus() === 'connected') {
+        // Only start handshake once the opponent is actually present
+        if (!networkManager.isHosting() && gameState === 'WAITING' && netConnected) {
             const sendHandshake = () => {
                 console.log("OnlineBattleScene: Guest sending READY handshake...");
                 const handshakeEvent: BattleEvent = {
@@ -188,13 +205,10 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
         return () => {
             if (handshakeInterval) clearInterval(handshakeInterval);
         };
-    }, [currentRoom, connectionStatus, maxPlayerHp, gameState, onlinePlayerStats.rating, partners.currentMonsterId, profile.name, myPlayerId]);
+    }, [currentRoom, connectionStatus, netConnected, maxPlayerHp, gameState, onlinePlayerStats.rating, partners.currentMonsterId, profile.name, myPlayerId]);
 
-    // Update handler ref on every render to avoid stale closures
+    // Handler ref (kept fresh each render) to avoid stale closures
     const handleNetworkEventRef = useRef<(event: BattleEvent) => void>(() => { });
-    useEffect(() => {
-        handleNetworkEventRef.current = handleNetworkEvent;
-    });
 
     // Register event listener once
     useEffect(() => {
@@ -257,7 +271,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                             name: profile.name,
                             kanjiList: currentRoom?.kanjiList || [] // Send kanji list to Guest
                         },
-                        timestamp: Date.now()
+                        timestamp: nowMs()
                     };
                     networkManager.sendEvent(responseEvent);
                 }
@@ -295,7 +309,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                             id: myPlayerId,
                             stats: myStats
                         },
-                        timestamp: Date.now()
+                        timestamp: nowMs()
                     };
                     networkManager.sendEvent(readyEvent);
                     setGameState('BATTLE');
@@ -318,7 +332,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                 }
                 break;
 
-            case BattleEventType.COMPLETE_WRITING:
+            case BattleEventType.COMPLETE_WRITING: {
                 const damage = event.payload?.damage || 0;
                 const isCritical = event.payload?.isCritical || false;
 
@@ -336,6 +350,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                     return newHp;
                 });
                 break;
+            }
 
             case BattleEventType.VICTORY:
                 if (opponentPlayerIdRef.current) {
@@ -353,11 +368,11 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
 
             case BattleEventType.PING:
                 // Update last ping time and reset failure counter - opponent is still connected
-                lastPingRef.current = Date.now();
+                lastPingRef.current = nowMs();
                 failedPingCountRef.current = 0;
                 break;
 
-            case BattleEventType.MISTAKE:
+            case BattleEventType.MISTAKE: {
                 const mistakeDamage = event.payload?.damage || 0;
                 // Opponent made a mistake -> Show damage on opponent
                 showDamageNumber(mistakeDamage, false, false);
@@ -367,9 +382,16 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                 // Use current state value as useOnlineStore setter doesn't support callback
                 setOpponentHp(Math.max(0, useOnlineStore.getState().opponentHp - mistakeDamage));
                 break;
+            }
 
         }
     };
+
+    // Keep the network handler ref fresh (defined after the handler to avoid
+    // use-before-declaration)
+    useEffect(() => {
+        handleNetworkEventRef.current = handleNetworkEvent;
+    });
 
     const handleVictory = () => {
         if (gameState === 'VICTORY' || gameState === 'DEFEAT') return;
@@ -491,20 +513,27 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                 {/* Waiting Overlay */}
                 {gameState === 'WAITING' && (
                     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-                        <div className="flex flex-col items-center gap-4 animate-fade-in text-center p-8 bg-gray-900 rounded-2xl border border-blue-500 shadow-2xl max-w-md w-full mx-4">
-                            <div className="text-yellow-400 font-black text-xl md:text-2xl animate-pulse">WAITING FOR CHALLENGER...</div>
+                        <div className="flex flex-col items-center gap-4 animate-fade-in text-center p-6 md:p-8 bg-gray-900 rounded-2xl border border-blue-500 shadow-2xl max-w-md w-full mx-4">
+                            <div className="text-yellow-400 font-black text-xl md:text-2xl animate-pulse">あいてを まっています…</div>
 
-                            <div className="w-full bg-black px-8 py-6 rounded-xl border-2 border-dashed border-gray-600 relative overflow-hidden group">
-                                <div className="text-xs text-gray-400 mb-2 font-mono uppercase tracking-widest">Room ID</div>
-                                <div className="text-4xl md:text-5xl font-mono font-bold text-white tracking-widest select-all break-all">
+                            <div className="w-full bg-black px-6 py-5 rounded-xl border-2 border-dashed border-gray-600 relative overflow-hidden group">
+                                <div className="text-xs text-gray-400 mb-2 font-mono uppercase tracking-widest">
+                                    {networkManager.isMatchMode() ? 'あいことば' : 'Room ID'}
+                                </div>
+                                <div className="text-3xl md:text-4xl font-mono font-bold text-white tracking-widest select-all break-all">
                                     {roomIdDisplay}
                                 </div>
+                                {networkManager.isMatchMode() && (
+                                    <div className="text-xs text-cyan-300 mt-3">
+                                        あいても おなじ あいことばで「たたかう！」を押すと はじまるよ
+                                    </div>
+                                )}
                                 <div className="flex justify-center mt-4">
                                     <button
                                         onClick={() => navigator.clipboard.writeText(roomIdDisplay)}
                                         className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-full flex items-center gap-2 transition-colors"
                                     >
-                                        <span>📋</span> Copy ID
+                                        <span>📋</span> コピー
                                     </button>
                                 </div>
                             </div>

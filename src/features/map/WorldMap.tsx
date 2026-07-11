@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUserStore } from '../../store/userStore';
 import { MONSTER_DB } from '../../lib/evolutionUtils';
@@ -24,23 +24,18 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
         description: 'Unknown Monster',
         unlockText: 'Unknown'
     };
-    const [stages, setStages] = useState<StageData[]>([]);
-    const [selectedChapter, setSelectedChapter] = useState<number | null>(storeChapter || null);
+    // Derived directly (no state+effect mirrors, which caused cascading renders)
+    const stages = useMemo(
+        () => getStages(maxUnlockedStage, profile.currentVersion),
+        [maxUnlockedStage, profile.currentVersion]
+    );
+    const selectedChapter = storeChapter || null;
     const { playBgm, playSfx } = useSound();
     const [showPartnerModal, setShowPartnerModal] = useState(false);
 
     useEffect(() => {
         playBgm('map');
     }, [playBgm]);
-
-    useEffect(() => {
-        setStages(getStages(maxUnlockedStage, profile.currentVersion));
-    }, [maxUnlockedStage, profile.currentVersion]);
-
-    // Sync selectedChapter with store
-    useEffect(() => {
-        setSelectedChapter(storeChapter || null);
-    }, [storeChapter]);
 
     const handleStageClick = (stage: StageData) => {
         if (stage.status === 'locked') return;
@@ -51,12 +46,10 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
     };
 
     const handleChapterSelect = (chapter: number) => {
-        setSelectedChapter(chapter);
         setStoreChapter(chapter);
     };
 
     const handleBackToChapters = () => {
-        setSelectedChapter(null);
         setStoreChapter(null);
     };
 

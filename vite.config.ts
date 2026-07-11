@@ -35,7 +35,11 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB for large backgrounds
         dontCacheBustURLsMatching: /\.(png|jpg|jpeg|svg|webp|woff|woff2|csv|mp3|ogg|wav)$/,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,mp3,ogg,wav,csv,json}'],
+        // Precache only the app shell + data (JS/CSS/HTML/CSV + kanji stroke
+        // JSON ≈ a few MB). Heavy media (500+ monster PNGs, backgrounds, music
+        // ≈ 200MB) is intentionally NOT precached — it is cached on demand by
+        // the runtimeCaching rules below, keeping first load/install light.
+        globPatterns: ['**/*.{js,css,html,csv}', 'kanji-data/**/*.json'],
         // Exclude files that are in includeAssets to avoid conflicts
         globIgnores: ['**/icon-*.png', '**/apple-touch-icon.png', '**/favicon.ico', '**/masked-icon.svg'],
         runtimeCaching: [
@@ -56,7 +60,7 @@ export default defineConfig({
             options: {
               cacheName: 'image-cache',
               expiration: {
-                maxEntries: 200,
+                maxEntries: 700, // covers all monster art + backgrounds
                 maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
               }
             }
