@@ -137,6 +137,84 @@ class NetworkManager {
     }
 
     /**
+     * Random match, first-come-first-served. Two phases:
+     * 1) Everyone waits in a shared lobby channel (presence carries joinedAt).
+     *    The two EARLIEST waiters are paired; later arrivals move up as pairs
+     *    leave the lobby.
+     * 2) The pair moves to its own private match channel (so bystanders never
+     *    see each other's battle events), then the normal passphrase-match
+     *    role decision applies.
+     * Resolves once the private pair channel is joined.
+     */
+    public async joinRandomMatch(timeoutMs = 90000): Promise<void> {
+        this.disconnect();
+
+        const myKey = `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        const lobby = supabase.channel('kanjigo-match-lobby', {
+            config: { presence: { key: myKey } },
+        });
+
+        const cleanupLobby = () => {
+            try {
+                supabase.removeChannel(lobby);
+            } catch {
+                // ignore
+            }
+        };
+
+        try {
+            const partnerKey = await new Promise<string>((resolve, reject) => {
+                let settled = false;
+                const timeout = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
+                    reject(new Error('あいてが みつかりませんでした'));
+                }, timeoutMs);
+
+                const check = () => {
+                    if (settled) return;
+                    const state = lobby.presenceState() as Record<string, Array<{ j?: number }>>;
+                    const waiters = Object.entries(state)
+                        .filter(([k]) => k.startsWith('p-'))
+                        .map(([k, v]) => ({ key: k, joined: v[0]?.j ?? Number.MAX_SAFE_INTEGER }))
+                        .sort((a, b) => (a.joined - b.joined) || (a.key < b.key ? -1 : 1));
+                    if (waiters.length < 2) return;
+                    // First-come-first-served: only the two earliest waiters pair up
+                    const pair = waiters.slice(0, 2);
+                    const me = pair.find((p) => p.key === myKey);
+                    if (!me) return; // not my turn yet — wait for the pair ahead to leave
+                    const partner = pair.find((p) => p.key !== myKey)!;
+                    settled = true;
+                    clearTimeout(timeout);
+                    resolve(partner.key);
+                };
+
+                lobby.on('presence', { event: 'sync' }, check);
+                lobby.on('presence', { event: 'join' }, check);
+                lobby.on('presence', { event: 'leave' }, check);
+                lobby.subscribe((status, err) => {
+                    if (status === 'SUBSCRIBED') {
+                        lobby.track({ j: Date.now() });
+                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        if (settled) return;
+                        settled = true;
+                        clearTimeout(timeout);
+                        reject(err || new Error('接続に失敗しました'));
+                    }
+                });
+            });
+
+            // Leave the lobby, then meet the partner on a private pair channel.
+            cleanupLobby();
+            const pairCode = `pair-${[myKey, partnerKey].sort().join('.')}`;
+            await this.joinMatch(pairCode);
+        } catch (err) {
+            cleanupLobby();
+            throw err;
+        }
+    }
+
+    /**
      * Create a new room (become host). Resolves once the room channel is ready;
      * the guest may join afterwards (detected via presence).
      */
