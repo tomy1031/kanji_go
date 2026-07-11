@@ -478,6 +478,9 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
 
     // Safe room access
     const roomIdDisplay = currentRoom?.id || "Unknown Room";
+    // Random matches meet on an auto-generated private pair channel — showing
+    // that code (or passphrase instructions) would only confuse players.
+    const isRandomPair = networkManager.getRoomId()?.startsWith('pair-') ?? false;
 
     return (
         <div className="w-full h-[100dvh] text-white flex flex-col relative overflow-hidden">
@@ -516,27 +519,35 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                         <div className="flex flex-col items-center gap-4 animate-fade-in text-center p-6 md:p-8 bg-gray-900 rounded-2xl border border-blue-500 shadow-2xl max-w-md w-full mx-4">
                             <div className="text-yellow-400 font-black text-xl md:text-2xl animate-pulse">あいてを まっています…</div>
 
-                            <div className="w-full bg-black px-6 py-5 rounded-xl border-2 border-dashed border-gray-600 relative overflow-hidden group">
-                                <div className="text-xs text-gray-400 mb-2 font-mono uppercase tracking-widest">
-                                    {networkManager.isMatchMode() ? 'あいことば' : 'Room ID'}
+                            {isRandomPair ? (
+                                <div className="w-full bg-black px-6 py-5 rounded-xl border-2 border-dashed border-purple-500/60">
+                                    <div className="text-3xl mb-2">🌍</div>
+                                    <div className="text-xl font-black text-white">ランダムマッチ</div>
+                                    <div className="text-xs text-purple-300 mt-2">あいてと せつぞくしています…</div>
                                 </div>
-                                <div className="text-3xl md:text-4xl font-mono font-bold text-white tracking-widest select-all break-all">
-                                    {roomIdDisplay}
-                                </div>
-                                {networkManager.isMatchMode() && (
-                                    <div className="text-xs text-cyan-300 mt-3">
-                                        あいても おなじ あいことばで「たたかう！」を押すと はじまるよ
+                            ) : (
+                                <div className="w-full bg-black px-6 py-5 rounded-xl border-2 border-dashed border-gray-600 relative overflow-hidden group">
+                                    <div className="text-xs text-gray-400 mb-2 font-mono uppercase tracking-widest">
+                                        {networkManager.isMatchMode() ? 'あいことば' : 'Room ID'}
                                     </div>
-                                )}
-                                <div className="flex justify-center mt-4">
-                                    <button
-                                        onClick={() => navigator.clipboard.writeText(roomIdDisplay)}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-full flex items-center gap-2 transition-colors"
-                                    >
-                                        <span>📋</span> コピー
-                                    </button>
+                                    <div className="text-3xl md:text-4xl font-mono font-bold text-white tracking-widest select-all break-all">
+                                        {roomIdDisplay}
+                                    </div>
+                                    {networkManager.isMatchMode() && (
+                                        <div className="text-xs text-cyan-300 mt-3">
+                                            あいても おなじ あいことばで「たたかう！」を押すと はじまるよ
+                                        </div>
+                                    )}
+                                    <div className="flex justify-center mt-4">
+                                        <button
+                                            onClick={() => navigator.clipboard.writeText(roomIdDisplay)}
+                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-full flex items-center gap-2 transition-colors"
+                                        >
+                                            <span>📋</span> コピー
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div className="text-xs text-gray-500 font-mono mt-2">
                                 Status: {connectionStatus} <br />

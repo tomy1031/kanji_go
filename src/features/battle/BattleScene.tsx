@@ -869,9 +869,10 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            className="absolute inset-0 z-50 flex bg-black/80 backdrop-blur-sm overflow-y-auto py-6"
           >
-            <div className="bg-gray-900 border-2 border-yellow-500 p-6 md:p-8 rounded-2xl max-w-md w-[90%] text-center shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden">
+            {/* my-auto keeps the card centered but lets tall content scroll on short screens */}
+            <div className="bg-gray-900 border-2 border-yellow-500 p-6 md:p-8 rounded-2xl max-w-md w-[90%] text-center shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden m-auto">
               {/* Animated Background Rays */}
               <div className="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_0_deg,rgba(234,179,8,0.1)_20deg,transparent_40deg)] animate-[spin_4s_linear_infinite]" />
 
@@ -976,9 +977,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            className="absolute inset-0 z-50 flex bg-black/80 backdrop-blur-sm overflow-y-auto py-6"
           >
-            <div className="bg-gray-900 border-2 border-red-600 p-6 md:p-8 rounded-2xl max-w-md w-[90%] text-center shadow-[0_0_50px_rgba(220,38,38,0.3)]">
+            <div className="bg-gray-900 border-2 border-red-600 p-6 md:p-8 rounded-2xl max-w-md w-[90%] text-center shadow-[0_0_50px_rgba(220,38,38,0.3)] m-auto">
               <h2 className="text-5xl font-black text-red-600 mb-6 drop-shadow-md tracking-widest">
                 GAMEOVER
               </h2>

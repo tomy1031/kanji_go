@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import RoomCreation from './RoomCreation';
 import RoomBrowser from './RoomBrowser';
 import FriendList from './FriendList';
@@ -10,8 +10,6 @@ import { getKanjiForStage, getAllKanji } from '../../lib/kanjiUtils';
 
 type TabType = 'quick' | 'friends' | 'create' | 'join' | 'stats';
 
-// Shared code used by "match with anyone" — everyone waiting here gets paired.
-const RANDOM_MATCH_CODE = 'zz-public-arena';
 const QUICK_MATCH_KANJI_COUNT = 20;
 
 interface OnlineLobbyProps {
@@ -23,11 +21,32 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
     const [matchWord, setMatchWord] = useState('');
     const [quickError, setQuickError] = useState<string | null>(null);
     const [isMatching, setIsMatching] = useState(false);
+    const [isSearching, setIsSearching] = useState(false); // random-match lobby wait
+    const matchTokenRef = useRef(0); // invalidates in-flight matches on cancel
     const { playerStats, resetStats, setCurrentRoom, setConnectionStatus } = useOnlineStore();
     const { profile } = useUserStore();
 
     const handleBackToMenu = () => {
         onBack();
+    };
+
+    // My question set (used if I end up as host; the host's list wins)
+    const buildMyRoom = (displayId: string) => {
+        const pool = getAllKanji().filter(k => k.level === profile.currentVersion).map(k => k.char);
+        const shuffled = [...new Set(pool)].sort(() => Math.random() - 0.5);
+        const kanjiList = shuffled.slice(0, QUICK_MATCH_KANJI_COUNT);
+        if (kanjiList.length === 0) {
+            kanjiList.push(...getKanjiForStage(1, 1, GameVersion.RED).map(k => k.char));
+        }
+        setCurrentRoom({
+            id: displayId,
+            hostName: profile.name,
+            level: profile.currentVersion,
+            world: 1,
+            order: 1,
+            kanjiList,
+            createdAt: Date.now(),
+        });
     };
 
     // Symmetric passphrase match: both players enter the SAME word and tap
@@ -43,24 +62,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
         try {
             setConnectionStatus('connecting');
             await networkManager.joinMatch(code);
-
-            // My question set (used if I end up as host; the host's list wins)
-            const pool = getAllKanji().filter(k => k.level === profile.currentVersion).map(k => k.char);
-            const shuffled = [...new Set(pool)].sort(() => Math.random() - 0.5);
-            const kanjiList = shuffled.slice(0, QUICK_MATCH_KANJI_COUNT);
-            if (kanjiList.length === 0) {
-                kanjiList.push(...getKanjiForStage(1, 1, GameVersion.RED).map(k => k.char));
-            }
-
-            setCurrentRoom({
-                id: code,
-                hostName: profile.name,
-                level: profile.currentVersion,
-                world: 1,
-                order: 1,
-                kanjiList,
-                createdAt: Date.now(),
-            });
+            buildMyRoom(code);
             setConnectionStatus('connected');
         } catch (err) {
             console.error('Quick match failed:', err);
@@ -69,6 +71,40 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
         } finally {
             setIsMatching(false);
         }
+    };
+
+    // Random match: first-come-first-served pairing in a shared waiting lobby,
+    // then the pair moves to its own private channel.
+    const handleRandomMatch = async () => {
+        setQuickError(null);
+        setIsMatching(true);
+        setIsSearching(true);
+        const token = ++matchTokenRef.current;
+        try {
+            setConnectionStatus('connecting');
+            await networkManager.joinRandomMatch();
+            if (matchTokenRef.current !== token) return; // cancelled while searching
+            buildMyRoom('ランダムマッチ');
+            setConnectionStatus('connected');
+        } catch (err) {
+            if (matchTokenRef.current !== token) return; // cancelled — ignore
+            console.error('Random match failed:', err);
+            setQuickError('あいてが みつかりませんでした。もういちど ためしてね');
+            setConnectionStatus('error');
+        } finally {
+            if (matchTokenRef.current === token) {
+                setIsMatching(false);
+                setIsSearching(false);
+            }
+        }
+    };
+
+    const cancelRandomMatch = () => {
+        matchTokenRef.current++;
+        networkManager.disconnect();
+        setIsMatching(false);
+        setIsSearching(false);
+        setConnectionStatus('idle');
     };
 
     // Start battle with a friend (join their room using their playerId)
@@ -138,13 +174,29 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                             <span className="text-xs text-gray-500">または</span>
                             <div className="h-px flex-1 bg-gray-700" />
                         </div>
-                        <button
-                            onClick={() => handleQuickMatch(RANDOM_MATCH_CODE)}
-                            disabled={isMatching}
-                            className={`w-full py-4 rounded-2xl font-black text-white text-lg border transition-all ${isMatching ? 'bg-gray-700 border-gray-600' : 'bg-gradient-to-r from-purple-600 to-fuchsia-600 border-purple-400/40 hover:brightness-110 active:scale-[0.98]'}`}
-                        >
-                            🌍 だれかとすぐ対戦（ランダムマッチ）
-                        </button>
+                        {isSearching ? (
+                            <div className="w-full py-5 rounded-2xl bg-gray-800 border border-purple-500/40 flex flex-col items-center gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                                    <span className="text-white font-bold">あいてを さがしています…</span>
+                                </div>
+                                <span className="text-xs text-gray-400">はやく来た人から じゅんばんに マッチするよ</span>
+                                <button
+                                    onClick={cancelRandomMatch}
+                                    className="px-6 py-2 bg-red-900/50 hover:bg-red-800/60 border border-red-500 rounded-full text-red-200 text-sm font-bold"
+                                >
+                                    やめる
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={handleRandomMatch}
+                                disabled={isMatching}
+                                className={`w-full py-4 rounded-2xl font-black text-white text-lg border transition-all ${isMatching ? 'bg-gray-700 border-gray-600' : 'bg-gradient-to-r from-purple-600 to-fuchsia-600 border-purple-400/40 hover:brightness-110 active:scale-[0.98]'}`}
+                            >
+                                🌍 だれかとすぐ対戦（ランダムマッチ）
+                            </button>
+                        )}
 
                         {quickError && (
                             <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 text-red-200 text-sm text-center">
