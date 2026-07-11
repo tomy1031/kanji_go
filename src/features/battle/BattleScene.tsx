@@ -12,6 +12,7 @@ import { KanjiInfoDisplay } from '../../components/KanjiInfoDisplay';
 import { KanjiListModal } from '../../components/KanjiListModal';
 import { type KanjiData } from "../../types";
 import { getAssetPath } from "../../utils/assetUtils";
+import { useCanvasSize } from "../../hooks/useCanvasSize";
 
 
 interface BattleSceneProps {
@@ -79,16 +80,8 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   const [showDefeatModal, setShowDefeatModal] = useState(false);
   const [expGained, setExpGained] = useState(0);
   const [isNewSkin, setIsNewSkin] = useState(false);
-  const [canvasSize, setCanvasSize] = useState(280);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setCanvasSize(window.innerWidth < 400 ? 240 : 280);
-    };
-    handleResize(); // Initial check
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Width- and height-aware so the canvas never pushes the HUD off small phones
+  const canvasSize = useCanvasSize(280, 0.36);
 
   // Derived Stats
   const currentPartner = MONSTER_DB[partners.currentMonsterId] || {

@@ -4,7 +4,7 @@ import { useUserStore } from '../../store/userStore';
 import { MONSTER_DB } from '../../lib/evolutionUtils';
 import { getStages, type StageData, getStageKanji } from '../../lib/stageUtils';
 import { useSound } from '../../hooks/useSound';
-import { getEnemyForStage } from '../../lib/enemyUtils';
+import { getEnemyForStage, getMetaMonsterForStage } from '../../lib/enemyUtils';
 import { getAssetPath } from '../../utils/assetUtils';
 import PartnerSelectModal from '../../components/PartnerSelectModal';
 
@@ -153,6 +153,25 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                 const kanjis = getStageKanji(stage.world, stage.order, profile.currentVersion);
                                 const enemy = getEnemyForStage(stage.world, stage.order, profile.currentVersion);
                                 const isLocked = stage.status === 'locked';
+                                // Reward (meta) monster earned by mastering this stage's kanji in practice
+                                const metaId = getMetaMonsterForStage(stage.world, stage.order, profile.currentVersion);
+                                const metaMonster = metaId ? MONSTER_DB[metaId] : undefined;
+                                const metaUnlocked = metaId ? partners.unlockedSkins.includes(metaId) : false;
+                                const rewardChip = metaMonster ? (
+                                    <div className={`flex flex-col items-center gap-0.5 shrink-0 ${isLocked ? 'opacity-40' : ''}`} title={metaUnlocked ? metaMonster.name : 'ごほうびモンスター（未ゲット）'}>
+                                        <div className="relative w-9 h-9 md:w-11 md:h-11 rounded-full bg-black/30 border border-purple-400/60 flex items-center justify-center overflow-hidden">
+                                            <img
+                                                src={getAssetPath(`/monsters/${metaId}.png`)}
+                                                alt="reward"
+                                                className={`w-7 h-7 md:w-9 md:h-9 object-contain ${metaUnlocked ? '' : 'brightness-0 opacity-70'}`}
+                                            />
+                                            {!metaUnlocked && <span className="absolute text-white/90 font-black text-xs">?</span>}
+                                        </div>
+                                        <span className={`text-[8px] md:text-[9px] font-black px-1.5 rounded-full ${metaUnlocked ? 'bg-yellow-400 text-yellow-900' : 'bg-purple-600 text-white'}`}>
+                                            {metaUnlocked ? '✓済' : 'GET'}
+                                        </span>
+                                    </div>
+                                ) : null;
 
                                 // Special design for BOSS stages
                                 if (stage.isBoss) {
@@ -195,13 +214,17 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                             </div>
 
                                             {/* Enemy Image (Larger) - with top margin for mobile */}
-                                            <div className="flex-1 flex items-center justify-center mt-6 md:mt-8">
+                                            <div className="flex-1 flex items-center justify-center mt-6 md:mt-8 relative w-full">
                                                 {enemy && (
                                                     <img
                                                         src={getAssetPath(enemy.imagePath || '')}
                                                         alt={enemy.name}
                                                         className={`w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-2xl ${isLocked ? 'grayscale opacity-50' : 'animate-pulse'}`}
                                                     />
+                                                )}
+                                                {/* Reward monster chip (boss card: pinned right) */}
+                                                {rewardChip && (
+                                                    <div className="absolute right-0 top-1/2 -translate-y-1/2">{rewardChip}</div>
                                                 )}
                                             </div>
 
@@ -261,6 +284,9 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                                 ))}
                                             </div>
                                         </div>
+
+                                        {/* Reward monster chip */}
+                                        {rewardChip}
 
                                         {/* Right: Enemy Icon */}
                                         <div className="w-16 h-16 md:w-20 md:h-20 flex-shrink-0 ml-2 relative">

@@ -161,9 +161,10 @@ function App() {
           <div className="relative w-full h-full">
             <button
               onClick={handleBattleEnd}
-              className="absolute top-4 right-4 z-50 bg-gray-800/50 px-3 py-1 rounded text-sm hover:bg-gray-700"
+              aria-label="バトルをやめる"
+              className="absolute top-2 right-2 z-50 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-bold text-white/80 border border-white/20 hover:bg-black/80 hover:text-white active:scale-95 transition-all"
             >
-              Exit Battle
+              ✕ にげる
             </button>
             {selectedLevel && (() => {
               const [world, order] = selectedLevel.split('-').map(Number);

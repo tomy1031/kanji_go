@@ -13,6 +13,7 @@ import { BattleEventType } from './types';
 import type { BattleEvent } from './types';
 import { getMonsterStats, MONSTER_DB } from '../../lib/evolutionUtils';
 import { getDebugParams } from '../../components/DebugMode';
+import { useCanvasSize } from '../../hooks/useCanvasSize';
 
 interface OnlineBattleSceneProps {
     onLeave: () => void;
@@ -451,6 +452,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
     };
 
     const currentKanjiChar = currentRoom?.kanjiList?.[currentKanjiIndex] || '漢';
+    const canvasSize = useCanvasSize(280, 0.36);
 
     // Safe room access
     const roomIdDisplay = currentRoom?.id || "Unknown Room";
@@ -562,11 +564,15 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                         animate={{ x: isOpponentHit ? [-10, 10, -10, 10, 0] : 0 }}
                         style={{ filter: isOpponentHit ? 'brightness(2) saturate(2)' : 'none' }}
                     >
+                        {/* Role tag: opponent */}
+                        <div className="bg-red-600 text-white text-[10px] md:text-xs font-black px-3 py-0.5 rounded-full mb-1 tracking-widest shadow-md">
+                            あいて
+                        </div>
                         {/* Name Badge */}
-                        <div className="text-red-400 text-[10px] md:text-sm font-black mb-1 flex items-center gap-1 bg-black/40 px-3 py-1 rounded-full border border-red-900/50 backdrop-blur-sm">
+                        <div className="text-red-400 text-[10px] md:text-sm font-black mb-1 flex items-center gap-1 bg-black/40 px-3 py-1 rounded-full border border-red-900/50 backdrop-blur-sm max-w-full">
                             <span>👹</span>
-                            <span>{opponentName || 'Rival'}</span>
-                            <span className="text-xs text-red-300 ml-1">Rating: {opponentRating}</span>
+                            <span className="truncate">{opponentName || 'Rival'}</span>
+                            <span className="text-xs text-red-300 ml-1 hidden md:inline">Rating: {opponentRating}</span>
                         </div>
 
                         {/* Avatar Frame */}
@@ -660,16 +666,24 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                         animate={{ x: isPlayerHit ? [-10, 10, -10, 10, 0] : 0 }}
                         style={{ filter: isPlayerHit ? 'brightness(2)' : 'none' }}
                     >
+                        {/* Role tag: YOU — bouncing marker so your side is obvious at a glance */}
+                        <motion.div
+                            animate={{ y: [0, -4, 0] }}
+                            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                            className="bg-cyan-400 text-cyan-950 text-[10px] md:text-xs font-black px-3 py-0.5 rounded-full mb-1 tracking-widest shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+                        >
+                            ▼ あなた
+                        </motion.div>
                         {/* Name Badge */}
-                        <div className="text-cyan-400 text-[10px] md:text-sm font-black mb-1 flex items-center gap-1 bg-black/40 px-3 py-1 rounded-full border border-blue-900/50 backdrop-blur-sm">
+                        <div className="text-cyan-400 text-[10px] md:text-sm font-black mb-1 flex items-center gap-1 bg-black/40 px-3 py-1 rounded-full border border-blue-900/50 backdrop-blur-sm max-w-full">
                             <span>✨</span>
-                            <span>{profile.name}</span>
-                            <span className="text-xs text-cyan-300 ml-1">Lv.{userStats.playerLevel}</span>
+                            <span className="truncate">{profile.name}</span>
+                            <span className="text-xs text-cyan-300 ml-1 hidden md:inline">Lv.{userStats.playerLevel}</span>
                         </div>
 
-                        {/* Avatar Frame */}
+                        {/* Avatar Frame (cyan glow marks your side) */}
                         <div
-                            className="w-full aspect-square max-w-[100px] md:max-w-[140px] rounded-xl border-4 flex items-center justify-center relative overflow-hidden bg-gradient-to-b from-gray-900 to-black shadow-2xl"
+                            className="w-full aspect-square max-w-[100px] md:max-w-[140px] rounded-xl border-4 flex items-center justify-center relative overflow-hidden bg-gradient-to-b from-gray-900 to-black shadow-2xl ring-2 ring-cyan-400/60 shadow-[0_0_25px_rgba(34,211,238,0.45)]"
                             style={{ borderColor: '#4488ff' }}
                         >
                             {/* Player Image */}
@@ -737,7 +751,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
             </div>
 
             {/* Bottom Card / Kanji Area - Matches BattleScene Height via flex logic or fixed height */}
-            <div className="w-full bg-[#d4c4a8] relative z-0 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center min-h-[300px]">
+            <div className="w-full bg-[#d4c4a8] relative z-0 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center py-3">
                 {/* Paper Texture Overlay */}
                 <div
                     className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply"
@@ -783,7 +797,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                                 <KanjiWriterCanvas
                                     key={`${currentKanjiChar}-${currentKanjiIndex}`}
                                     char={currentKanjiChar}
-                                    size={280}
+                                    size={canvasSize}
                                     quizMode={true}
                                     onComplete={handleWriteComplete}
                                     onMistake={() => {
@@ -822,7 +836,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
 
                     {/* Waiting Message if no canvas */}
                     {gameState === 'WAITING' && (
-                        <div className="w-[300px] h-[300px] flex items-center justify-center bg-black/10 rounded-xl border-4 border-dashed border-[#8b7355]/30">
+                        <div style={{ width: canvasSize, height: canvasSize }} className="flex items-center justify-center bg-black/10 rounded-xl border-4 border-dashed border-[#8b7355]/30">
                             <span className="text-[#8b7355] font-bold text-lg animate-pulse">Battle Area</span>
                         </div>
                     )}
