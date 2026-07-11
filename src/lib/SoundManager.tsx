@@ -1,38 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { SoundContext } from './SoundContext';
 import { useUserStore } from '../store/userStore';
 import { GameVersion } from '../types';
 import { getAssetPath } from '../utils/assetUtils';
 
+// Map versions to file prefixes
+const getVersionPrefix = (version: GameVersion) => {
+    switch (version) {
+        case GameVersion.RED: return 'red';
+        case GameVersion.GREEN: return 'green';
+        case GameVersion.BLUE: return 'blue';
+        default: return 'red';
+    }
+};
+
+const bgmTracks = {
+    title: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-opening.mp3`),
+    battle: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-battle.mp3`),
+    map: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-field.mp3`),
+    boss: () => getAssetPath('/music/boss.mp3'), // Version-independent
+    practice: () => getAssetPath('/music/practice.mp3'), // Version-independent
+};
+
 export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isMuted, setIsMuted] = useState(false);
     const bgmRef = useRef<HTMLAudioElement | null>(null);
-    const { profile } = useUserStore();
     const audioContextRef = useRef<AudioContext | null>(null);
+    // Mute flag mirrored in a ref so the play callbacks can stay referentially
+    // stable (consumers use them in effect dependency arrays).
+    const isMutedRef = useRef(isMuted);
 
-    // Map versions to file prefixes
-    const getVersionPrefix = (version: GameVersion) => {
-        switch (version) {
-            case GameVersion.RED: return 'red';
-            case GameVersion.GREEN: return 'green';
-            case GameVersion.BLUE: return 'blue';
-            default: return 'red';
-        }
-    };
-
-    const bgmTracks = {
-        title: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-opening.mp3`),
-        battle: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-battle.mp3`),
-        map: (version: GameVersion) => getAssetPath(`/music/${getVersionPrefix(version)}-field.mp3`),
-        boss: () => getAssetPath('/music/boss.mp3'), // Version-independent
-        practice: () => getAssetPath('/music/practice.mp3'), // Version-independent
-    };
-
-    const toggleMute = () => {
+    const toggleMute = useCallback(() => {
         setIsMuted(prev => !prev);
-    };
+    }, []);
 
     useEffect(() => {
+        isMutedRef.current = isMuted;
         if (bgmRef.current) {
             bgmRef.current.muted = isMuted;
         }
@@ -62,11 +65,13 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const currentTrackRef = useRef<string | null>(null);
 
-    const playBgm = (track: 'title' | 'battle' | 'map' | 'boss' | 'practice') => {
+    const playBgm = useCallback((track: 'title' | 'battle' | 'map' | 'boss' | 'practice') => {
+        // Read the current version at call time (keeps this callback stable)
+        const version = useUserStore.getState().profile.currentVersion;
         // Boss and practice tracks are version-independent
         const src = (track === 'boss' || track === 'practice')
             ? bgmTracks[track]()
-            : bgmTracks[track](profile.currentVersion);
+            : bgmTracks[track](version);
 
         // If the same track is already playing, do nothing
         if (currentTrackRef.current === src && bgmRef.current && !bgmRef.current.paused) {
@@ -82,7 +87,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const audio = new Audio(src);
         audio.loop = true;
         audio.volume = 0.5;
-        audio.muted = isMuted;
+        audio.muted = isMutedRef.current;
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
@@ -93,11 +98,11 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         bgmRef.current = audio;
         currentTrackRef.current = src;
-    };
+    }, []);
 
     // Synthesize SFX using Web Audio API (or play from file for certain effects)
-    const playSfx = (effect: 'select' | 'hit' | 'win' | 'evolve' | 'mistake' | 'critical' | 'boss_siren') => {
-        if (isMuted) return;
+    const playSfx = useCallback((effect: 'select' | 'hit' | 'win' | 'evolve' | 'mistake' | 'critical' | 'boss_siren') => {
+        if (isMutedRef.current) return;
 
         // For boss_siren, play from audio file
         if (effect === 'boss_siren') {
@@ -178,19 +183,24 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 osc.stop(now + 0.3);
                 break;
         }
-    };
+    }, []);
 
     // Stop current BGM
-    const stopBgm = () => {
+    const stopBgm = useCallback(() => {
         if (bgmRef.current) {
             bgmRef.current.pause();
             bgmRef.current = null;
         }
         currentTrackRef.current = null;
-    };
+    }, []);
+
+    const contextValue = useMemo(
+        () => ({ isMuted, toggleMute, playBgm, stopBgm, playSfx }),
+        [isMuted, toggleMute, playBgm, stopBgm, playSfx]
+    );
 
     return (
-        <SoundContext.Provider value={{ isMuted, toggleMute, playBgm, stopBgm, playSfx }}>
+        <SoundContext.Provider value={contextValue}>
             {children}
             {/* Global Mute Button Overlay */}
             <button
@@ -202,4 +212,3 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         </SoundContext.Provider>
     );
 };
-

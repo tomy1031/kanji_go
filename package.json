@@ -18,7 +18,6 @@
     "hanzi-writer": "^3.7.3",
     "hanzi-writer-data": "^2.0.1",
     "hanzi-writer-data-jp": "^0.0.2",
-    "peerjs": "^1.5.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",

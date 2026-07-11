@@ -31,6 +31,11 @@ class NetworkManager {
     private subscribed = false;
     private otherPresent = false;
     private connectionLost = false;
+    // Symmetric passphrase match: both players just join the same word;
+    // the host is decided automatically from presence keys.
+    private mode: 'room' | 'match' = 'room';
+    private myKey: string | null = null;
+    private roleDecided = false;
 
     private constructor() { }
 
@@ -53,7 +58,22 @@ class NetworkManager {
 
     private recomputePresence(): void {
         const wasPresent = this.otherPresent;
-        this.otherPresent = this.hasRole(this.otherRole());
+        if (this.mode === 'match') {
+            // Passphrase match: peers use random `p-*` presence keys. The pair's
+            // roles are decided deterministically once (smallest key = host).
+            const keys = this.channel
+                ? Object.keys(this.channel.presenceState()).filter((k) => k.startsWith('p-'))
+                : [];
+            const others = keys.filter((k) => k !== this.myKey);
+            if (!this.roleDecided && this.myKey && others.length > 0) {
+                this.isHost = [...keys].sort()[0] === this.myKey;
+                this.roleDecided = true;
+                console.log('[NetworkManager] Match paired. Role:', this.isHost ? 'host' : 'guest');
+            }
+            this.otherPresent = others.length > 0;
+        } else {
+            this.otherPresent = this.hasRole(this.otherRole());
+        }
         if (wasPresent && !this.otherPresent) {
             // Opponent left the room
             this.connectionLost = true;
@@ -78,6 +98,45 @@ class NetworkManager {
     }
 
     /**
+     * Symmetric passphrase match: BOTH players call this with the same word —
+     * no create/join asymmetry, no ID sharing. Whoever's presence key sorts
+     * first becomes host automatically once the two peers see each other.
+     * Resolves as soon as the channel is ready (opponent detected via presence).
+     */
+    public async joinMatch(code: string): Promise<void> {
+        this.disconnect();
+
+        const roomId = code.trim();
+        this.roomId = roomId;
+        this.mode = 'match';
+        this.roleDecided = false;
+        this.connectionLost = false;
+        this.myKey = `p-${Math.random().toString(36).slice(2, 10)}`;
+
+        const channel = supabase.channel(`kanjigo-match-${roomId}`, {
+            config: { broadcast: { self: false }, presence: { key: this.myKey } },
+        });
+        this.channel = channel;
+        this.attachHandlers(channel);
+
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('接続がタイムアウトしました')), 15000);
+            channel.subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    clearTimeout(timeout);
+                    this.subscribed = true;
+                    channel.track({ t: 1 });
+                    console.log('[NetworkManager] Joined match channel:', roomId);
+                    resolve();
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    clearTimeout(timeout);
+                    reject(err || new Error('接続に失敗しました'));
+                }
+            });
+        });
+    }
+
+    /**
      * Create a new room (become host). Resolves once the room channel is ready;
      * the guest may join afterwards (detected via presence).
      */
@@ -87,6 +146,7 @@ class NetworkManager {
         const roomId = customRoomId || this.generateRoomId();
         this.isHost = true;
         this.roomId = roomId;
+        this.mode = 'room';
         this.connectionLost = false;
 
         const channel = supabase.channel(channelName(roomId), {
@@ -123,6 +183,7 @@ class NetworkManager {
 
         this.isHost = false;
         this.roomId = roomId;
+        this.mode = 'room';
         this.connectionLost = false;
 
         const channel = supabase.channel(channelName(roomId), {
@@ -252,6 +313,9 @@ class NetworkManager {
         this.connectionLost = false;
         this.roomId = null;
         this.isHost = false;
+        this.mode = 'room';
+        this.myKey = null;
+        this.roleDecided = false;
         this.eventCallbacks = [];
     }
 
@@ -267,6 +331,11 @@ class NetworkManager {
 
     public isHosting(): boolean {
         return this.isHost;
+    }
+
+    /** True when connected via the symmetric passphrase match flow. */
+    public isMatchMode(): boolean {
+        return this.mode === 'match';
     }
 
     public getRoomId(): string | null {

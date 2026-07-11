@@ -4,21 +4,71 @@ import RoomBrowser from './RoomBrowser';
 import FriendList from './FriendList';
 import { useOnlineStore } from './onlineStore';
 import { networkManager } from './NetworkManager';
+import { useUserStore } from '../../store/userStore';
 import { GameVersion } from '../../types';
-import { getKanjiForStage } from '../../lib/kanjiUtils';
+import { getKanjiForStage, getAllKanji } from '../../lib/kanjiUtils';
 
-type TabType = 'friends' | 'create' | 'join' | 'stats';
+type TabType = 'quick' | 'friends' | 'create' | 'join' | 'stats';
+
+// Shared code used by "match with anyone" — everyone waiting here gets paired.
+const RANDOM_MATCH_CODE = 'zz-public-arena';
+const QUICK_MATCH_KANJI_COUNT = 20;
 
 interface OnlineLobbyProps {
     onBack: () => void;
 }
 
 const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
-    const [activeTab, setActiveTab] = useState<TabType>('friends');
+    const [activeTab, setActiveTab] = useState<TabType>('quick');
+    const [matchWord, setMatchWord] = useState('');
+    const [quickError, setQuickError] = useState<string | null>(null);
+    const [isMatching, setIsMatching] = useState(false);
     const { playerStats, resetStats, setCurrentRoom, setConnectionStatus } = useOnlineStore();
+    const { profile } = useUserStore();
 
     const handleBackToMenu = () => {
         onBack();
+    };
+
+    // Symmetric passphrase match: both players enter the SAME word and tap
+    // battle — no room creation, no ID sharing, host decided automatically.
+    const handleQuickMatch = async (rawCode: string) => {
+        const code = rawCode.trim().toLowerCase().replace(/\s+/g, '-');
+        if (!code) {
+            setQuickError('あいことばを いれてね');
+            return;
+        }
+        setQuickError(null);
+        setIsMatching(true);
+        try {
+            setConnectionStatus('connecting');
+            await networkManager.joinMatch(code);
+
+            // My question set (used if I end up as host; the host's list wins)
+            const pool = getAllKanji().filter(k => k.level === profile.currentVersion).map(k => k.char);
+            const shuffled = [...new Set(pool)].sort(() => Math.random() - 0.5);
+            const kanjiList = shuffled.slice(0, QUICK_MATCH_KANJI_COUNT);
+            if (kanjiList.length === 0) {
+                kanjiList.push(...getKanjiForStage(1, 1, GameVersion.RED).map(k => k.char));
+            }
+
+            setCurrentRoom({
+                id: code,
+                hostName: profile.name,
+                level: profile.currentVersion,
+                world: 1,
+                order: 1,
+                kanjiList,
+                createdAt: Date.now(),
+            });
+            setConnectionStatus('connected');
+        } catch (err) {
+            console.error('Quick match failed:', err);
+            setQuickError('つながりませんでした。もういちど ためしてね');
+            setConnectionStatus('error');
+        } finally {
+            setIsMatching(false);
+        }
     };
 
     // Start battle with a friend (join their room using their playerId)
@@ -50,6 +100,64 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
 
     const renderTabContent = () => {
         switch (activeTab) {
+            case 'quick':
+                return (
+                    <div className="space-y-6">
+                        {/* Passphrase match — the simplest way to battle a friend */}
+                        <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/30 border border-cyan-500/40 rounded-2xl p-5">
+                            <h2 className="text-xl font-black text-white mb-1">🔑 あいことばで対戦</h2>
+                            <p className="text-sm text-cyan-200/80 mb-4">
+                                ふたりで <span className="font-bold text-white">おなじ あいことば</span> を入れて「たたかう！」を押すだけ。
+                            </p>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={matchWord}
+                                    onChange={e => setMatchWord(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && !isMatching && handleQuickMatch(matchWord)}
+                                    placeholder="れい：ねこパンチ99"
+                                    maxLength={24}
+                                    className="flex-1 min-w-0 px-4 py-3 bg-gray-900 text-white text-lg rounded-xl border-2 border-cyan-700 focus:border-cyan-400 focus:outline-none placeholder-gray-600"
+                                />
+                                <button
+                                    onClick={() => handleQuickMatch(matchWord)}
+                                    disabled={isMatching}
+                                    className={`px-5 py-3 rounded-xl font-black text-white whitespace-nowrap transition-all ${isMatching ? 'bg-gray-600' : 'bg-cyan-500 hover:bg-cyan-400 active:scale-95 shadow-[0_0_16px_rgba(34,211,238,0.4)]'}`}
+                                >
+                                    {isMatching ? 'せつぞく中…' : 'たたかう！'}
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-gray-500 mt-2">
+                                ※ かぶらないように、すこし めずらしい ことばに してね
+                            </p>
+                        </div>
+
+                        {/* Random match with anyone waiting */}
+                        <div className="flex items-center gap-3">
+                            <div className="h-px flex-1 bg-gray-700" />
+                            <span className="text-xs text-gray-500">または</span>
+                            <div className="h-px flex-1 bg-gray-700" />
+                        </div>
+                        <button
+                            onClick={() => handleQuickMatch(RANDOM_MATCH_CODE)}
+                            disabled={isMatching}
+                            className={`w-full py-4 rounded-2xl font-black text-white text-lg border transition-all ${isMatching ? 'bg-gray-700 border-gray-600' : 'bg-gradient-to-r from-purple-600 to-fuchsia-600 border-purple-400/40 hover:brightness-110 active:scale-[0.98]'}`}
+                        >
+                            🌍 だれかとすぐ対戦（ランダムマッチ）
+                        </button>
+
+                        {quickError && (
+                            <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 text-red-200 text-sm text-center">
+                                {quickError}
+                            </div>
+                        )}
+
+                        <div className="text-xs text-gray-500 leading-relaxed">
+                            出題される漢字は、さきにマッチした側（ホスト）のバージョンからランダムに{QUICK_MATCH_KANJI_COUNT}問。
+                            こまかく選びたいときは「ルーム作成」タブへ。
+                        </div>
+                    </div>
+                );
             case 'friends':
                 return <FriendList onStartBattle={handleStartBattle} />;
             case 'create':
@@ -165,42 +273,24 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
 
                 {/* Tabs */}
                 <div className="flex flex-wrap gap-2 mb-6">
-                    <button
-                        onClick={() => setActiveTab('friends')}
-                        className={`flex-1 min-w-[80px] px-4 py-3 rounded-lg font-bold transition-all ${activeTab === 'friends'
-                            ? 'bg-cyan-600 text-white scale-105'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                    >
-                        👥 フレンド
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('create')}
-                        className={`flex-1 min-w-[80px] px-4 py-3 rounded-lg font-bold transition-all ${activeTab === 'create'
-                            ? 'bg-green-600 text-white scale-105'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                    >
-                        ルーム作成
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('join')}
-                        className={`flex-1 min-w-[80px] px-4 py-3 rounded-lg font-bold transition-all ${activeTab === 'join'
-                            ? 'bg-blue-600 text-white scale-105'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                    >
-                        IDで参加
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('stats')}
-                        className={`flex-1 min-w-[80px] px-4 py-3 rounded-lg font-bold transition-all ${activeTab === 'stats'
-                            ? 'bg-purple-600 text-white scale-105'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                    >
-                        📊 成績
-                    </button>
+                    {([
+                        { id: 'quick', label: '⚡ クイック', active: 'bg-cyan-600' },
+                        { id: 'friends', label: '👥 フレンド', active: 'bg-teal-600' },
+                        { id: 'create', label: 'ルーム作成', active: 'bg-green-600' },
+                        { id: 'join', label: 'IDで参加', active: 'bg-blue-600' },
+                        { id: 'stats', label: '📊 成績', active: 'bg-purple-600' },
+                    ] as const).map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex-1 min-w-[72px] px-3 py-2.5 rounded-lg font-bold text-sm md:text-base transition-all ${activeTab === tab.id
+                                ? `${tab.active} text-white scale-105`
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
 
                 {/* Tab Content */}
@@ -214,11 +304,11 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                         <span className="text-2xl">⚔️</span>
                         <div>
                             <h3 className="text-sm font-bold text-purple-300 mb-1">
-                                リアルタイムP2P対戦
+                                リアルタイム漢字バトル
                             </h3>
                             <p className="text-xs text-gray-400">
-                                インターネットを通じて、世界中のプレイヤーと直接対戦できます。
-                                サーバーを介さないため、低遅延で快適なプレイが可能です。
+                                インターネットごしに、はやく・正しく漢字を書いたほうが勝ち！
+                                いちばんかんたんなのは「⚡ クイック」の あいことば対戦です。
                             </p>
                         </div>
                     </div>
