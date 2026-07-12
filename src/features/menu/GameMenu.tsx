@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useUserStore } from '../../store/userStore';
+import { MONSTER_DB } from '../../lib/evolutionUtils';
 import { GameVersion } from '../../types';
 import { getAssetPath } from '../../utils/assetUtils';
 import { useSound } from '../../hooks/useSound';
@@ -14,8 +15,15 @@ interface GameMenuProps {
 }
 
 const GameMenu: React.FC<GameMenuProps> = ({ onQuest, onPractice, onStatus, onOnline, onBack }) => {
-    const { profile } = useUserStore();
+    const { profile, partners, dailyStreak, clutchWins } = useUserStore();
     const { playBgm } = useSound();
+
+    // Collection completion — the visible "gap" invites completion
+    const totalMonsters = Object.keys(MONSTER_DB).length;
+    const ownedMonsters = partners.unlockedSkins.length;
+    const shinyCount = (partners.shinySkins || []).length;
+    const collectionPct = totalMonsters > 0 ? Math.floor((ownedMonsters / totalMonsters) * 100) : 0;
+    const streakCount = dailyStreak?.count || 0;
 
     // Play title BGM when entering main menu
     useEffect(() => {
@@ -47,9 +55,27 @@ const GameMenu: React.FC<GameMenuProps> = ({ onQuest, onPractice, onStatus, onOn
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60" />
 
             <div className="z-10 w-full max-w-md flex flex-col gap-3 md:gap-4 p-4 md:p-8">
-                <h2 className="text-2xl md:text-4xl font-black text-white text-center mb-3 md:mb-6 tracking-[0.3em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                <h2 className="text-2xl md:text-4xl font-black text-white text-center mb-2 md:mb-3 tracking-[0.3em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                     メニュー
                 </h2>
+
+                {/* Player status strip: streak / collection / clutch */}
+                <div className="flex justify-center gap-2 mb-3 md:mb-4 flex-wrap">
+                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${streakCount > 0 ? 'bg-orange-500/20 border-orange-400/50 text-orange-300' : 'bg-black/30 border-white/10 text-gray-400'}`}>
+                        🔥 れんぞく {streakCount}日
+                        {(dailyStreak?.freezes || 0) > 0 && <span className="text-cyan-300 ml-1">🧊x{dailyStreak!.freezes}</span>}
+                    </div>
+                    <div className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 border border-purple-400/50 text-purple-200">
+                        📖 ずかん {collectionPct}%
+                        <span className="text-purple-300/70">({ownedMonsters}/{totalMonsters})</span>
+                        {shinyCount > 0 && <span className="text-fuchsia-300 ml-1">✨x{shinyCount}</span>}
+                    </div>
+                    {(clutchWins || 0) > 0 && (
+                        <div className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 border border-red-400/50 text-red-300">
+                            ⚡ クラッチ {clutchWins}
+                        </div>
+                    )}
+                </div>
 
                 {menuItems.map((item, index) => (
                     <motion.button

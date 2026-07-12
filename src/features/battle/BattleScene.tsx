@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import KanjiWriterCanvas from "../../components/KanjiWriterCanvas";
 import { useUserStore } from "../../store/userStore";
 import { useSound } from "../../hooks/useSound";
@@ -13,6 +13,19 @@ import { KanjiListModal } from '../../components/KanjiListModal';
 import { type KanjiData } from "../../types";
 import { getAssetPath } from "../../utils/assetUtils";
 import { useCanvasSize } from "../../hooks/useCanvasSize";
+import {
+  PERFECT_DAMAGE_MULT,
+  LOW_HP_RATIO,
+  CLUTCH_HP_RATIO,
+  SHINY_RATE,
+  RARE_RATE,
+  RARE_EXP_MULT,
+  SHINY_FILTER,
+  BONUS_ROUND_EXP_MULT,
+  BONUS_ROUND_LEVEL_STEP,
+  BONUS_ROUND_MAX,
+  STREAK_MILESTONE_EXP,
+} from "../../lib/constants";
 
 
 interface BattleSceneProps {
@@ -34,8 +47,11 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     unlockNextStage,
     setPartner,
     profile,
+    addShinySkin,
+    recordClutchWin,
+    recordDailyActivity,
   } = useUserStore();
-  const { playBgm, stopBgm, playSfx } = useSound();
+  const { playBgm, stopBgm, playSfx, playStroke } = useSound();
 
   // Game State
   const [playerHp, setPlayerHp] = useState(100);
@@ -83,6 +99,16 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   // Width- and height-aware so the canvas never pushes the HUD off small phones
   const canvasSize = useCanvasSize(280, 0.36);
 
+  // --- Dopamine systems state ---
+  const [perfectFlash, setPerfectFlash] = useState(false);
+  const [bonusRound, setBonusRound] = useState(0); // risk-choice chain after victory
+  const [isClutchWin, setIsClutchWin] = useState(false);
+  const [drop, setDrop] = useState<'shiny' | 'rare' | 'none' | null>(null); // victory capsule
+  const [dropRevealed, setDropRevealed] = useState(false);
+  const [streakToast, setStreakToast] = useState<number | null>(null);
+  const arenaShake = useAnimationControls();
+  const isPartnerShiny = (partners.shinySkins || []).includes(partners.currentMonsterId);
+
   // Derived Stats
   const currentPartner = MONSTER_DB[partners.currentMonsterId] || {
     id: 'starter_fire',
@@ -98,9 +124,10 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   const maxPlayerHp = playerStats.hp;
   const playerAttack = playerStats.attack;
 
-  // Enemy Stats (Scaled to stage-defined enemy level)
+  // Enemy Stats (Scaled to stage-defined enemy level; bonus rounds raise it)
   const stageEnemyLevel = getEnemyLevelForStage(world, order, profile.currentVersion);
-  const enemyStats = getMonsterStats(currentEnemy.id, stageEnemyLevel);
+  const effectiveEnemyLevel = stageEnemyLevel + bonusRound * BONUS_ROUND_LEVEL_STEP;
+  const enemyStats = getMonsterStats(currentEnemy.id, effectiveEnemyLevel);
   const maxEnemyHp = enemyStats.hp;
 
   // Convert world/order to unique stage identifier for storage
@@ -314,6 +341,8 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   const handleCorrectStroke = () => {
     // Increment combo on each successful stroke
     setCombo(prev => prev + 1);
+    // Rising-pitch blip — the combo audibly "charges up"
+    playStroke(combo + 1);
 
     // Katana Slash Effect
     setSlashEffect({
@@ -324,8 +353,12 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     setTimeout(() => setSlashEffect(null), 200);
   };
 
-  const handleWriteSuccess = () => {
+  const handleWriteSuccess = (summary?: { character: string; totalMistakes: number }) => {
     if (!currentKanji || battleState !== "battle") return;
+
+    // PERFECT: the whole kanji written without a single mistake.
+    // Skill maps directly to payoff — this is the core dopamine link.
+    const isPerfect = (summary?.totalMistakes ?? 1) === 0;
 
     // Player Attacks - base damage + combo bonus (1 per combo stroke)
     let damage = playerAttack + combo;
@@ -346,6 +379,20 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     } else {
       setBattleMessage("Hit! " + damage + " damage!");
     }
+
+    if (isPerfect) {
+      damage = Math.floor(damage * PERFECT_DAMAGE_MULT);
+      isCritical = true;
+      setPerfectFlash(true);
+      setTimeout(() => setPerfectFlash(false), 900);
+      setBattleMessage("PERFECT! " + damage + " damage!");
+    }
+
+    // Impact shake — the finishing stroke should physically land
+    arenaShake.start({
+      x: isPerfect ? [0, -12, 12, -8, 8, -4, 0] : [0, -6, 6, -4, 0],
+      transition: { duration: isPerfect ? 0.5 : 0.3 },
+    });
 
     playSfx(isCritical ? "critical" : "hit");
     const newEnemyHp = Math.max(0, enemyHp - damage);
@@ -417,17 +464,38 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     setBattleMessage(`You defeated ${currentEnemy.name}!`);
     setBattleState("win");
 
-    console.log("=== VICTORY ===");
-    console.log("Current Enemy:", currentEnemy);
-    console.log("EXP Reward:", currentEnemy.expReward);
+    // Clutch win: barely survived — memorable moments deserve a badge
+    const clutch = playerHp > 0 && playerHp <= Math.ceil(maxPlayerHp * CLUTCH_HP_RATIO);
+    setIsClutchWin(clutch);
+    if (clutch) recordClutchWin();
 
-    // Ensure we have a valid expReward (fallback to 10 if undefined)
-    const exp = currentEnemy?.expReward || 10;
+    // Victory capsule (variable reward): shiny > rare > none
+    const roll = Math.random();
+    const dropType: 'shiny' | 'rare' | 'none' =
+      roll < SHINY_RATE ? 'shiny' : roll < SHINY_RATE + RARE_RATE ? 'rare' : 'none';
+    setDrop(dropType);
+    setDropRevealed(false);
+    setTimeout(() => setDropRevealed(true), 900); // capsule "opens" after a beat
+    if (dropType === 'shiny') {
+      addShinySkin(currentEnemy.id);
+    }
+
+    // EXP: base × rare-capsule bonus × bonus-round multiplier
+    const baseExp = currentEnemy?.expReward || 10;
+    const exp = Math.floor(
+      baseExp *
+      (dropType === 'rare' ? RARE_EXP_MULT : 1) *
+      Math.pow(BONUS_ROUND_EXP_MULT, bonusRound)
+    );
     setExpGained(exp);
     addExp(exp);
 
-    console.log("EXP Gained:", exp);
-    console.log("Adding EXP to player...");
+    // Daily streak (counts once per day; milestones grant EXP + a freeze)
+    const { milestone } = recordDailyActivity();
+    if (milestone) {
+      setStreakToast(milestone);
+      setTimeout(() => setStreakToast(null), 3500);
+    }
 
     // Calculate Stars
     let stars = 1;
@@ -453,6 +521,22 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     setShowVictoryModal(true);
   };
 
+  // Risk choice: keep your current HP and fight the same enemy at a higher
+  // level for multiplied EXP. Lose and you keep only what you already earned.
+  const handleBonusRound = () => {
+    const nextRound = bonusRound + 1;
+    setBonusRound(nextRound);
+    const s = getMonsterStats(currentEnemy.id, stageEnemyLevel + nextRound * BONUS_ROUND_LEVEL_STEP);
+    setEnemyHp(s.hp);
+    setShowVictoryModal(false);
+    setDrop(null);
+    setIsClutchWin(false);
+    setCompletedKanjiIds([]);
+    setBattleState("battle");
+    setBattleMessage("BONUS BATTLE!");
+    playSfx("boss_siren");
+  };
+
   const handleReturnToMap = () => {
     if (onComplete) {
       onComplete();
@@ -473,7 +557,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   return (
     <div className="w-full h-[100dvh] text-white flex flex-col relative overflow-hidden">
       {/* Battle Arena - Top Section - Uses flex-1 to take remaining space */}
-      <div className="relative flex-1 flex items-center justify-center min-h-0">
+      <motion.div animate={arenaShake} className="relative flex-1 flex items-center justify-center min-h-0">
         {/* Diagonal Split Background */}
         <div className="absolute inset-0 overflow-hidden">
           {/* Red side (Enemy) */}
@@ -591,7 +675,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                         currentEnemy.element === 'BOSS' ? '👿' : '🔥'
               }</span>
               <span>{currentEnemy.name}</span>
-              <span className="text-xs text-red-300 ml-1">Lv.{stageEnemyLevel}</span>
+              <span className="text-xs text-red-300 ml-1">Lv.{effectiveEnemyLevel}</span>
             </div>
             {/* Enemy Frame */}
             <div
@@ -718,8 +802,14 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                 src={getAssetPath(`/monsters/${currentPartner.id}.png`)}
                 alt={currentPartner.name}
                 className="w-[75%] h-[75%] object-contain drop-shadow-lg"
-                style={{ animation: 'fighterIdle 2s ease-in-out infinite' }}
+                style={{
+                  animation: 'fighterIdle 2s ease-in-out infinite',
+                  filter: isPartnerShiny ? SHINY_FILTER : undefined,
+                }}
               />
+              {isPartnerShiny && (
+                <span className="absolute top-0.5 right-1 text-[10px]" title="色ちがい">✨</span>
+              )}
               {/* Level Up Effect */}
               <AnimatePresence>
                 {levelUpMessage && (
@@ -782,7 +872,42 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             ))}
           </div>
         </div>
-      </div>
+
+        {/* Bonus round badge */}
+        {bonusRound > 0 && (
+          <div className="absolute top-2 left-2 z-20 bg-gradient-to-r from-amber-500 to-orange-600 text-black font-black text-[10px] md:text-xs px-2.5 py-1 rounded-full border border-yellow-300 shadow-lg">
+            ⚡ ボーナス x{Math.pow(BONUS_ROUND_EXP_MULT, bonusRound)}
+          </div>
+        )}
+
+        {/* Low-HP danger vignette (clutch tension) */}
+        {battleState === "battle" && playerHp > 0 && playerHp <= maxPlayerHp * LOW_HP_RATIO && (
+          <div
+            className="absolute inset-0 pointer-events-none z-20 animate-pulse"
+            style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(220,38,38,0.4) 100%)' }}
+          />
+        )}
+
+        {/* PERFECT flash */}
+        <AnimatePresence>
+          {perfectFlash && (
+            <motion.div
+              initial={{ opacity: 0, scale: 2.2, rotate: -6 }}
+              animate={{ opacity: 1, scale: 1, rotate: -6 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 16 }}
+              className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
+            >
+              <span
+                className="text-4xl md:text-6xl font-black italic text-yellow-300"
+                style={{ textShadow: '0 0 24px rgba(250,204,21,0.9), 4px 4px 0 #b45309' }}
+              >
+                PERFECT!!
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       {/* Paper Texture Divider */}
       <div
@@ -862,6 +987,20 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
         </div>
       </div>
 
+      {/* Streak milestone toast */}
+      <AnimatePresence>
+        {streakToast && (
+          <motion.div
+            initial={{ y: -60, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -60, opacity: 0 }}
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] bg-gradient-to-r from-orange-500 to-red-500 text-white font-black px-5 py-2 rounded-full border border-yellow-300 shadow-xl text-xs md:text-sm whitespace-nowrap"
+          >
+            🔥 {streakToast}日 れんぞく達成！ +{STREAK_MILESTONE_EXP}EXP ＆ ストリーク保護 +1
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Modals */}
       <AnimatePresence>
         {/* Victory Modal */}
@@ -911,6 +1050,67 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                     NEW MONSTER GET!
                   </motion.div>
                 )}
+
+                {isClutchWin && (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -8 }}
+                    animate={{ scale: 1, rotate: -3 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 12 }}
+                    className="bg-gradient-to-r from-red-600 to-orange-500 text-white font-black px-4 py-1 rounded-full text-sm mb-2 border border-yellow-300 shadow-[0_0_16px_rgba(249,115,22,0.7)]"
+                  >
+                    ⚡ クラッチ勝利！（ギリギリで勝った！）
+                  </motion.div>
+                )}
+
+                {/* Victory capsule — variable reward reveal */}
+                {drop && (
+                  <div className="mb-2 min-h-[64px] flex items-center justify-center">
+                    {!dropRevealed ? (
+                      <motion.div
+                        animate={{ rotate: [0, -12, 12, -12, 12, 0], scale: [1, 1.1, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
+                        className="text-5xl"
+                      >
+                        🎁
+                      </motion.div>
+                    ) : drop === 'shiny' ? (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 12 }}
+                        className="flex flex-col items-center gap-1"
+                      >
+                        <div className="relative w-16 h-16 rounded-full bg-black/60 border-2 border-fuchsia-400 shadow-[0_0_24px_rgba(232,121,249,0.8)] flex items-center justify-center overflow-hidden">
+                          <img
+                            src={getAssetPath(currentEnemy.imagePath || '')}
+                            alt="shiny"
+                            className="w-12 h-12 object-contain"
+                            style={{ filter: SHINY_FILTER }}
+                          />
+                        </div>
+                        <span className="text-fuchsia-300 font-black text-sm animate-pulse">✨ 色ちがい GET!! ✨</span>
+                      </motion.div>
+                    ) : drop === 'rare' ? (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 260, damping: 14 }}
+                        className="flex items-center gap-2 bg-cyan-500/20 border border-cyan-400 rounded-full px-4 py-1.5"
+                      >
+                        <span className="text-xl">💎</span>
+                        <span className="text-cyan-300 font-black text-sm">レアカプセル！ EXP x{RARE_EXP_MULT}</span>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-gray-500 text-xs"
+                      >
+                        カプセルは からっぽ… （✨色ちがいは {Math.round(SHINY_RATE * 100)}% でドロップ！）
+                      </motion.div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Stats Comparison */}
@@ -952,19 +1152,29 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                 </div>
               </div>
 
+              {/* Risk choice: fight a stronger version, HP carries over */}
+              {bonusRound < BONUS_ROUND_MAX && playerHp > 0 && (
+                <button
+                  onClick={handleBonusRound}
+                  className="w-full mb-2 relative z-10 bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 text-black font-black py-3 rounded-xl transition-all text-sm border border-yellow-300 shadow-[0_0_16px_rgba(245,158,11,0.5)] active:scale-[0.98]"
+                >
+                  ⚡ れんぞくバトル！（敵 Lv+{BONUS_ROUND_LEVEL_STEP}・EXP x{BONUS_ROUND_EXP_MULT} / HPそのまま）
+                </button>
+              )}
+
               <div className="flex gap-2 relative z-10">
                 <button
                   onClick={handleReturnToMap}
                   className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-colors text-sm"
                 >
-                  RETURN
+                  もどる
                 </button>
                 {isNewSkin && (
                   <button
                     onClick={handleEquipNewSkin}
                     className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl transition-colors text-sm"
                   >
-                    EQUIP SKIN
+                    つれていく
                   </button>
                 )}
               </div>
