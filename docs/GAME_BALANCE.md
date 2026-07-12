@@ -27,12 +27,30 @@ Attack = BaseAttack * (1 + (Level - 1) * 0.1)
 
 ## Damage Formula
 ```
-Damage = AttackerAttack
+Damage = AttackerAttack + ComboCount (flat bonus, resets on mistake)
 If Weakness: Damage *= 2.0
 If Resistance: Damage *= 0.5
-If Critical: Damage *= 1.5 (Default Chance: 10%)
-If Combo: Damage += ComboCount (Flat bonus)
+If PERFECT (kanji written with zero mistakes): Damage *= PERFECT_DAMAGE_MULT (1.5)
 ```
+PERFECT is deterministic (skill-based), replacing random crits in quest battles.
+
+## Victory Drops (variable reward)
+- Shiny (色違い) version of the defeated monster: `SHINY_RATE` (2%)
+- Rare capsule (EXP × `RARE_EXP_MULT` = 1.5): `RARE_RATE` (18%)
+- Otherwise: empty capsule
+
+## Bonus Rounds (risk choice)
+After a victory the player may immediately fight the same enemy at
+`+BONUS_ROUND_LEVEL_STEP` (4) levels with HP carried over, multiplying the
+next victory's EXP by `BONUS_ROUND_EXP_MULT` (2) per round, up to
+`BONUS_ROUND_MAX` (3) rounds. Losing forfeits only the unearned bonus.
+
+## Daily Streak
+One activity per day (practice write or battle win) advances the streak.
+Milestones (3/7/14/30/60/100) grant `STREAK_MILESTONE_EXP` (200) EXP and one
+streak freeze (protects a single missed day).
+
+All tuning constants live in `src/lib/constants.ts`.
 
 ## Experience Points (EXP)
 

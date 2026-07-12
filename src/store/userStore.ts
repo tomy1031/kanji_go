@@ -5,7 +5,7 @@ import { getLevelFromExp } from '../lib/levelUtils';
 import { getAllKanji } from '../lib/kanjiUtils';
 import { MONSTER_DB } from '../lib/evolutionUtils';
 import { getMetaMonsterForStage } from '../lib/enemyUtils';
-import { PRACTICE_MASTERY_COUNT } from '../lib/constants';
+import { PRACTICE_MASTERY_COUNT, STREAK_MILESTONES, STREAK_MILESTONE_EXP } from '../lib/constants';
 
 interface UserStore extends UserState {
     setProfile: (profile: Partial<UserState['profile']>) => void;
@@ -35,6 +35,13 @@ interface UserStore extends UserState {
     recordWin: (opponentId: string) => void;
     recordLoss: (opponentId: string) => void;
     syncBattleStats: (opponentId: string, remoteStats: { wins: number; losses: number }) => void;
+    // Dopamine systems
+    addShinySkin: (skinId: string) => void;
+    recordClutchWin: () => void;
+    /** Updates the daily streak; returns the new count and a milestone number if one was just reached. */
+    recordDailyActivity: () => { count: number; milestone: number | null };
+    /** Records a score-attack result; returns true if it is a new personal best. */
+    submitScoreAttack: (version: GameVersion, score: number) => boolean;
 }
 
 // Generate a readable player ID
@@ -241,6 +248,63 @@ export const useUserStore = create<UserStore>()(
                     return {};
                 }),
             setSelectedChapter: (chapter) => set({ selectedChapter: chapter }),
+            addShinySkin: (skinId) =>
+                set((state) => {
+                    const shiny = state.partners.shinySkins || [];
+                    if (shiny.includes(skinId)) return {};
+                    return { partners: { ...state.partners, shinySkins: [...shiny, skinId] } };
+                }),
+            recordClutchWin: () => set((state) => ({ clutchWins: (state.clutchWins || 0) + 1 })),
+            recordDailyActivity: () => {
+                const state = get();
+                const today = new Date();
+                const dateKey = (d: Date) =>
+                    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const todayKey = dateKey(today);
+                const yesterday = new Date(today);
+                yesterday.setDate(today.getDate() - 1);
+                const yesterdayKey = dateKey(yesterday);
+                const twoDaysAgo = new Date(today);
+                twoDaysAgo.setDate(today.getDate() - 2);
+                const twoDaysAgoKey = dateKey(twoDaysAgo);
+
+                const cur = state.dailyStreak || { count: 0, lastDate: '', freezes: 0 };
+                if (cur.lastDate === todayKey) {
+                    return { count: cur.count, milestone: null }; // already counted today
+                }
+
+                let count: number;
+                let freezes = cur.freezes;
+                if (cur.lastDate === yesterdayKey) {
+                    count = cur.count + 1;
+                } else if (cur.lastDate === twoDaysAgoKey && freezes > 0) {
+                    // One missed day — a streak freeze saves it
+                    freezes -= 1;
+                    count = cur.count + 1;
+                } else {
+                    count = 1;
+                }
+
+                const milestone = STREAK_MILESTONES.includes(count) ? count : null;
+                if (milestone) {
+                    freezes += 1; // milestones grant a streak freeze
+                }
+                set({ dailyStreak: { count, lastDate: todayKey, freezes } });
+                if (milestone) {
+                    get().addExp(STREAK_MILESTONE_EXP);
+                }
+                return { count, milestone };
+            },
+            submitScoreAttack: (version, score) => {
+                const state = get();
+                const best = state.scoreAttackBest || {};
+                const prev = best[version] || 0;
+                if (score > prev) {
+                    set({ scoreAttackBest: { ...best, [version]: score } });
+                    return true;
+                }
+                return false;
+            },
             checkStageCompletion: (stageId, version) => {
                 const state = useUserStore.getState();
 

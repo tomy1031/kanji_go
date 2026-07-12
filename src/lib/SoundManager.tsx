@@ -185,6 +185,27 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     }, []);
 
+    // Rising-pitch stroke blip: each consecutive correct stroke sounds one
+    // semitone higher (capped), which makes combos physically feel like they
+    // are "charging up".
+    const playStroke = useCallback((combo: number) => {
+        if (isMutedRef.current || !audioContextRef.current) return;
+        const ctx = audioContextRef.current;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const now = ctx.currentTime;
+        const step = Math.min(Math.max(combo, 0), 16); // cap the climb
+        const freq = 660 * Math.pow(2, step / 12);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+        osc.start(now);
+        osc.stop(now + 0.09);
+    }, []);
+
     // Stop current BGM
     const stopBgm = useCallback(() => {
         if (bgmRef.current) {
@@ -195,8 +216,8 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, []);
 
     const contextValue = useMemo(
-        () => ({ isMuted, toggleMute, playBgm, stopBgm, playSfx }),
-        [isMuted, toggleMute, playBgm, stopBgm, playSfx]
+        () => ({ isMuted, toggleMute, playBgm, stopBgm, playSfx, playStroke }),
+        [isMuted, toggleMute, playBgm, stopBgm, playSfx, playStroke]
     );
 
     return (

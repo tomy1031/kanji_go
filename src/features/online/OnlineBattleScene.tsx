@@ -14,6 +14,7 @@ import type { BattleEvent } from './types';
 import { getMonsterStats, MONSTER_DB } from '../../lib/evolutionUtils';
 import { getDebugParams } from '../../components/DebugMode';
 import { useCanvasSize } from '../../hooks/useCanvasSize';
+import { getRank } from './rankUtils';
 
 interface OnlineBattleSceneProps {
     onLeave: () => void;
@@ -396,14 +397,20 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
     const handleVictory = () => {
         if (gameState === 'VICTORY' || gameState === 'DEFEAT') return;
         setGameState('VICTORY');
-        setMessage('YOU WIN!');
         playSfx('win');
 
-        // Update Stats
+        // Update Stats — celebrate a rank-up when the new rating crosses a tier
         incrementWins();
         addPoints(100);
         const ratingDelta = calculateRatingChange(onlinePlayerStats.rating, opponentRating, true);
+        const before = getRank(onlinePlayerStats.rating);
+        const after = getRank(onlinePlayerStats.rating + ratingDelta);
         updateRating(ratingDelta);
+        if (after.tierIndex > before.tierIndex) {
+            setMessage(`🎉 ${after.tier.icon} ${after.tier.name}に しょうかく！！`);
+        } else {
+            setMessage('YOU WIN!');
+        }
     };
 
     const handleDefeat = () => {

@@ -7,6 +7,7 @@ import { networkManager } from './NetworkManager';
 import { useUserStore } from '../../store/userStore';
 import { GameVersion } from '../../types';
 import { getKanjiForStage, getAllKanji } from '../../lib/kanjiUtils';
+import { getRank } from './rankUtils';
 
 type TabType = 'quick' | 'friends' | 'create' | 'join' | 'stats';
 
@@ -139,6 +140,37 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
             case 'quick':
                 return (
                     <div className="space-y-6">
+                        {/* Rank card — the ladder to climb */}
+                        {(() => {
+                            const rank = getRank(playerStats.rating);
+                            return (
+                                <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 flex items-center gap-4">
+                                    <div className="text-4xl">{rank.tier.icon}</div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className={`font-black text-lg ${rank.tier.color}`}>{rank.tier.name}</span>
+                                            <span className="text-xs text-gray-400 font-mono">レート {playerStats.rating}</span>
+                                        </div>
+                                        {rank.next ? (
+                                            <>
+                                                <div className="mt-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all duration-700"
+                                                        style={{ width: `${rank.progress * 100}%` }}
+                                                    />
+                                                </div>
+                                                <div className="text-[11px] text-gray-400 mt-0.5">
+                                                    {rank.next.icon} {rank.next.name}まで あと <span className="text-white font-bold">{rank.pointsToNext}</span> pt
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="text-[11px] text-fuchsia-300 mt-1 font-bold">さいこうランク！</div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         {/* Passphrase match — the simplest way to battle a friend */}
                         <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/30 border border-cyan-500/40 rounded-2xl p-5">
                             <h2 className="text-xl font-black text-white mb-1">🔑 あいことばで対戦</h2>
@@ -222,12 +254,21 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                         <h2 className="text-2xl font-bold text-white">対戦成績</h2>
 
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Rating */}
+                            {/* Rating + Rank */}
                             <div className="bg-gradient-to-br from-yellow-600 to-yellow-800 rounded-lg p-6">
                                 <div className="text-sm text-yellow-200 mb-1">レーティング</div>
                                 <div className="text-4xl font-black text-white">
                                     {playerStats.rating}
                                 </div>
+                                {(() => {
+                                    const rank = getRank(playerStats.rating);
+                                    return (
+                                        <div className="mt-1 text-sm font-black text-white/90">
+                                            {rank.tier.icon} {rank.tier.name}
+                                            {rank.next && <span className="text-xs text-yellow-200/80 ml-1">（あと{rank.pointsToNext}ptで{rank.next.name}）</span>}
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Points */}

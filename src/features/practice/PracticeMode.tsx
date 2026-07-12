@@ -9,6 +9,7 @@ import { preloadCharData } from '../../lib/kanjiStrokeLoader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetPath } from '../../utils/assetUtils';
 import KanjiWriterCanvas, { type KanjiWriterHandle } from '../../components/KanjiWriterCanvas';
+import ScoreAttack from './ScoreAttack';
 import { useSound } from '../../hooks/useSound';
 import { useCanvasSize } from '../../hooks/useCanvasSize';
 
@@ -17,8 +18,8 @@ interface PracticeModeProps {
 }
 
 const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
-    const { progress, maxUnlockedStage, profile, partners, incrementPracticeCount, addExp, checkPracticeStageCompletion } = useUserStore();
-    const { playBgm } = useSound();
+    const { progress, maxUnlockedStage, profile, partners, scoreAttackBest, incrementPracticeCount, addExp, checkPracticeStageCompletion, recordDailyActivity } = useUserStore();
+    const { playBgm, playStroke } = useSound();
     const [activeTab, setActiveTab] = useState<'NEW+LEARNING' | 'ALL' | 'LEARNING' | 'MASTERED'>('NEW+LEARNING');
     const [selectedStage, setSelectedStage] = useState<string | 'ALL'>('ALL'); // Changed to string for world-order keys
     const [searchTerm, setSearchTerm] = useState('');
@@ -28,6 +29,9 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
     const [unlockedMonster, setUnlockedMonster] = useState<string | null>(null);
     const [masteredChar, setMasteredChar] = useState<string | null>(null); // celebration on reaching the mastery count
     const [countPulse, setCountPulse] = useState(0); // re-triggers the +1 pulse animation
+    const [showScoreAttack, setShowScoreAttack] = useState(false);
+    const [streakToast, setStreakToast] = useState<number | null>(null);
+    const strokeComboRef = useRef(0); // per-character stroke counter for the rising-pitch blip
     const canvasSize = useCanvasSize(300, 0.38);
 
     // Play practice BGM on mount
@@ -84,6 +88,14 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
             const prevCount = progress[practiceTarget]?.practiceCount || 0;
             incrementPracticeCount(practiceTarget);
             setCountPulse(p => p + 1);
+            strokeComboRef.current = 0;
+
+            // Daily streak (counts once per day)
+            const { milestone } = recordDailyActivity();
+            if (milestone) {
+                setStreakToast(milestone);
+                setTimeout(() => setStreakToast(null), 3500);
+            }
 
             const completedKanji = allKanji.find(k => k.id === practiceTarget);
             if (prevCount + 1 === PRACTICE_MASTERY_COUNT && completedKanji) {
@@ -142,6 +154,11 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
             setPracticeTarget(filteredKanji[currentIndex - 1].id);
         }
     };
+
+    // Score Attack mode (60s personal-best rush)
+    if (showScoreAttack) {
+        return <ScoreAttack onBack={() => setShowScoreAttack(false)} />;
+    }
 
     // Practice Screen View
     if (practiceTarget) {
@@ -228,6 +245,13 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                             ref={canvasRef}
                             char={targetKanji.char}
                             size={canvasSize}
+                            onCorrectStroke={() => {
+                                strokeComboRef.current += 1;
+                                playStroke(strokeComboRef.current);
+                            }}
+                            onMistake={() => {
+                                strokeComboRef.current = 0;
+                            }}
                             onComplete={handlePracticeComplete}
                             quizMode={true}
                             showSample={showSample}
@@ -292,6 +316,20 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                         次の漢字 →
                     </button>
                 </div>
+
+                {/* Streak milestone toast */}
+                <AnimatePresence>
+                    {streakToast && (
+                        <motion.div
+                            initial={{ y: -60, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: -60, opacity: 0 }}
+                            className="absolute top-14 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-orange-500 to-red-500 text-white font-black px-5 py-2 rounded-full border border-yellow-300 shadow-xl text-xs md:text-sm whitespace-nowrap"
+                        >
+                            🔥 {streakToast}日 れんぞく達成！ ボーナスEXP ＆ ストリーク保護 +1
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Mastery celebration overlay */}
                 <AnimatePresence>
@@ -430,6 +468,17 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 w-full md:w-64 focus:outline-none focus:border-cyan-500"
                     />
+
+                    {/* Score Attack entry */}
+                    <button
+                        onClick={() => setShowScoreAttack(true)}
+                        className="px-4 py-2 rounded-lg font-black text-white bg-gradient-to-r from-fuchsia-600 to-purple-600 border border-fuchsia-400/40 hover:brightness-110 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                        ⏱️ スコアアタック
+                        {((scoreAttackBest || {})[profile.currentVersion] || 0) > 0 && (
+                            <span className="ml-1 text-xs text-fuchsia-200">🏆{(scoreAttackBest || {})[profile.currentVersion]}</span>
+                        )}
+                    </button>
                 </div>
             </div>
 

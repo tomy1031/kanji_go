@@ -62,7 +62,18 @@ export interface UserState {
     partners: {
         currentMonsterId: string;
         unlockedSkins: string[]; // 取得済みモンスタースキンID
+        shinySkins?: string[];   // 色違い取得済みモンスターID（レアドロップ）
     };
+    // デイリーストリーク（連続プレイ日数）
+    dailyStreak?: {
+        count: number;
+        lastDate: string;  // YYYY-MM-DD (local)
+        freezes: number;   // ストリーク保護アイテム
+    };
+    // スコアアタック自己ベスト（バージョン別）
+    scoreAttackBest?: Record<string, number>;
+    // クラッチ勝利（残りHPわずかで勝った回数）
+    clutchWins?: number;
     currentStageId?: number;
     maxUnlockedStage: number;
     selectedChapter?: number | null; // Currently selected chapter in WorldMap
