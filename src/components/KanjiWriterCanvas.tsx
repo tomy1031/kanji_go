@@ -89,6 +89,9 @@ const KanjiWriterCanvas = forwardRef<KanjiWriterHandle, KanjiWriterCanvasProps>(
 
         isQuizActiveRef.current = true;
         writerRef.current.quiz({
+            // After 2 misses on a stroke, HanziWriter flashes the correct
+            // stroke — a struggling child always gets a way forward.
+            showHintAfterMisses: 2,
             onCorrectStroke: (data) => {
                 if (callbacksRef.current.onCorrectStroke) callbacksRef.current.onCorrectStroke(data as Record<string, unknown>);
             },
@@ -125,7 +128,16 @@ const KanjiWriterCanvas = forwardRef<KanjiWriterHandle, KanjiWriterCanvasProps>(
 
         const initHanziWriter = async () => {
             try {
+                // Immediate loading indicator — never a silent blank square
+                target.innerHTML = `
+                    <div style="width:${size}px;height:${size}px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+                        <div style="width:28px;height:28px;border:3px solid rgba(120,120,120,0.25);border-top-color:#4A9EFF;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+                        <div style="font-size:11px;color:#999;">よみこみ中…</div>
+                    </div>
+                    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+                `;
                 const testData = await loadCharData(char);
+                target.innerHTML = '';
                 if (!testData) {
                     showFallbackUI(target);
                     return;
@@ -144,6 +156,9 @@ const KanjiWriterCanvas = forwardRef<KanjiWriterHandle, KanjiWriterCanvasProps>(
                     delayBetweenStrokes: debugParams.delayBetweenStrokes,
                     radicalColor: '#168F16',
                     drawingWidth: debugParams.drawingWidth,
+                    // Slightly forgiving stroke matching for small fingers on
+                    // small screens (1.0 = hanzi-writer default strictness)
+                    leniency: debugParams.leniency || 1.15,
                     strokeColor: '#555',
                     outlineColor: '#DDD',
                     highlightColor: '#4A9EFF',

@@ -17,7 +17,7 @@ const cartridges = [
         color: 'from-red-500 to-red-700',
         icon: '🔥',
         bg: 'bg-red-600',
-        description: 'N5 Level - Fire & Passion',
+        description: 'しょきゅう（N5）・ほのおの ぼうけん',
         image: '/backgrounds/bg_n5.png'
     },
     {
@@ -26,7 +26,7 @@ const cartridges = [
         color: 'from-blue-500 to-blue-700',
         icon: '💧',
         bg: 'bg-blue-600',
-        description: 'N4 Level - Ocean & Depth',
+        description: 'ちゅうきゅう（N4）・うみの ぼうけん',
         image: '/backgrounds/bg_n4.png'
     },
     {
@@ -35,7 +35,7 @@ const cartridges = [
         color: 'from-green-500 to-green-700',
         icon: '🌿',
         bg: 'bg-green-600',
-        description: 'N3 Level - Nature & Growth',
+        description: 'じょうきゅう（N3）・もりの ぼうけん',
         image: '/backgrounds/bg_n3.png'
     }
 ];
@@ -108,7 +108,7 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer">
                     <div className="text-center animate-pulse">
                         <div className="text-4xl md:text-6xl mb-4">👆</div>
-                        <div className="text-xl md:text-2xl font-bold text-white tracking-widest">TAP TO START</div>
+                        <div className="text-xl md:text-2xl font-bold text-white tracking-widest">タップして はじめよう！</div>
                     </div>
                 </div>
             )}
@@ -124,8 +124,8 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                         <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-bold text-sm md:text-lg text-cyan-100">Student: Player</span>
-                        <span className="text-[10px] md:text-xs text-cyan-400">Level 1 • Novice Coder</span>
+                        <span className="font-bold text-sm md:text-lg text-cyan-100">かんじGO！</span>
+                        <span className="text-[10px] md:text-xs text-cyan-400">どのソフトで あそぶ？</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 md:gap-4">
@@ -155,8 +155,8 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                         className="bg-purple-600 hover:bg-purple-500 text-white text-xs md:text-sm font-bold py-1 px-3 md:py-2 md:px-4 rounded-full transition-colors flex items-center gap-1 md:gap-2"
                     >
                         <span>📱</span>
-                        <span className="hidden md:inline">Install App</span>
-                        <span className="md:hidden">Install</span>
+                        <span className="hidden md:inline">アプリにする</span>
+                        <span className="md:hidden">アプリにする</span>
                     </button>
                 </div>
             </div>
@@ -173,7 +173,7 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                                 layoutId={cartridge.id}
                                 onClick={() => {
                                     setFocusedId(cartridge.id);
-                                    if (isFocused) handleSelect(cartridge.id);
+                                    handleSelect(cartridge.id);
                                 }}
                                 animate={{
                                     scale: isFocused ? 1.05 : 0.95,
@@ -221,28 +221,17 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                                 animate={{ opacity: isFocused ? 1 : 0 }}
                                 className="text-cyan-400 font-mono text-xs md:text-sm tracking-widest absolute -bottom-8"
                             >
-                                [ SELECT MODULE ]
+                                ▲ タップで スタート！
                             </motion.div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Bottom Bar (System Icons) */}
-            <div className="p-4 md:p-6 px-4 md:px-12 flex justify-center gap-8 md:gap-12 border-t border-white/10 bg-[#1e293b]/50 backdrop-blur-md z-10">
-                {[
-                    { label: 'Dashboard', icon: '📊' },
-                    { label: 'Curriculum', icon: '📚' },
-                    { label: 'Achievements', icon: '🏆' },
-                    { label: 'Settings', icon: '⚙️' }
-                ].map((item) => (
-                    <div key={item.label} className="flex flex-col items-center gap-2 group cursor-pointer hover:text-cyan-400 transition-colors text-gray-400">
-                        <div className="text-xl md:text-2xl group-hover:scale-110 transition-transform">
-                            {item.icon}
-                        </div>
-                        <span className="text-[10px] md:text-xs font-mono uppercase hidden md:block">{item.label}</span>
-                    </div>
-                ))}
+            {/* Bottom Bar */}
+            <div className="p-3 md:p-5 flex justify-center items-center gap-2 border-t border-white/10 bg-[#1e293b]/50 backdrop-blur-md z-10">
+                <span className="md:hidden text-[11px] text-cyan-300/80 font-bold animate-pulse">← よこに うごかすと ほかのソフトも あるよ →</span>
+                <span className="hidden md:inline text-xs text-gray-500">すきなソフトを えらんでね</span>
             </div>
 
             {/* Loading Overlay */}
@@ -255,11 +244,11 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                     >
                         <div className="flex flex-col items-center text-center">
                             <div className="w-12 h-12 md:w-16 md:h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
-                            <div className="text-cyan-400 text-lg md:text-xl font-mono tracking-widest animate-pulse">
-                                INITIALIZING ENVIRONMENT...
+                            <div className="text-cyan-400 text-lg md:text-xl font-bold tracking-widest animate-pulse">
+                                じゅんびちゅう…
                             </div>
-                            <div className="text-gray-500 text-xs md:text-sm mt-2 font-mono">
-                                Loading module: {selectedId}
+                            <div className="text-gray-500 text-xs md:text-sm mt-2">
+                                {selectedId} の せかいへ しゅっぱつ！
                             </div>
                         </div>
                     </motion.div>

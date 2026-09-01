@@ -79,7 +79,7 @@ const TitleScreen: React.FC<TitleScreenProps> = ({ version, onStart, onBack }) =
                     transition={{ delay: 0.3 }}
                     className={`text-xl md:text-2xl font-bold text-white mb-8 md:mb-12 tracking-widest uppercase border-b-4 ${theme.accent} inline-block pb-2`}
                 >
-                    {version} VERSION
+                    {version} ばん
                 </motion.div>
 
                 <motion.button
@@ -91,7 +91,7 @@ const TitleScreen: React.FC<TitleScreenProps> = ({ version, onStart, onBack }) =
                     onClick={onStart}
                     className={`${theme.buttonColor} text-white text-lg md:text-xl font-bold py-3 px-8 md:py-4 md:px-12 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.5)] border-2 border-white/20`}
                 >
-                    PRESS START
+                    タップして スタート！
                 </motion.button>
             </div>
 
@@ -104,7 +104,7 @@ const TitleScreen: React.FC<TitleScreenProps> = ({ version, onStart, onBack }) =
                 onClick={onBack}
                 className="absolute top-4 left-4 z-20 text-white/80 hover:text-white flex items-center gap-2 bg-black/30 px-4 py-2 rounded-full backdrop-blur-sm transition-colors"
             >
-                <span>←</span> Change Version
+                <span>←</span> ソフトをかえる
             </button>
         </div>
     );

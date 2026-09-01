@@ -111,10 +111,12 @@ const RoomCreation: React.FC = () => {
         }
     };
 
+    const [copied, setCopied] = useState(false);
     const handleCopyRoomId = () => {
         if (roomId) {
             navigator.clipboard.writeText(roomId);
-            // TODO: Show toast notification
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
         }
     };
 
@@ -262,7 +264,7 @@ const RoomCreation: React.FC = () => {
                                         onClick={handleCopyRoomId}
                                         className="px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
                                     >
-                                        コピー
+                                        {copied ? '✓ コピーした！' : 'コピー'}
                                     </button>
                                 </div>
                             </div>
@@ -273,6 +275,17 @@ const RoomCreation: React.FC = () => {
                                     ⏳ 対戦相手の接続を待っています...
                                 </p>
                             </div>
+
+                            <button
+                                onClick={() => {
+                                    networkManager.disconnect();
+                                    setRoomId(null);
+                                    setConnectionStatus('idle');
+                                }}
+                                className="w-full mt-4 px-4 py-3 bg-red-900/50 hover:bg-red-800/60 border border-red-500 rounded-lg text-red-200 text-sm font-bold transition-colors"
+                            >
+                                やめる
+                            </button>
                         </div>
                     </div>
 

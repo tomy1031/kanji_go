@@ -105,7 +105,7 @@ const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({ isOpen, onClose
                 >
                     {/* Header */}
                     <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-white">PARTNER SELECT</h2>
+                        <h2 className="text-xl font-bold text-white">パートナーをえらぶ</h2>
                         <button
                             onClick={onClose}
                             className="text-gray-400 hover:text-white text-2xl"
@@ -149,11 +149,11 @@ const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({ isOpen, onClose
                                 onClick={handleEquip}
                                 className="mt-4 bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded-full font-bold shadow-lg transition-all"
                             >
-                                EQUIP
+                                つかう
                             </button>
                         )}
                         {selectedSkin === partners.currentMonsterId && (
-                            <div className="mt-4 text-green-400 font-bold">✓ EQUIPPED</div>
+                            <div className="mt-4 text-green-400 font-bold">✓ つかってるよ</div>
                         )}
                     </div>
 
@@ -161,7 +161,7 @@ const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({ isOpen, onClose
                     <div className="px-4 py-2 bg-gray-800/50 border-b border-gray-700">
                         {/* Element Filter */}
                         <div className="flex gap-1 items-center mb-2 overflow-x-auto pb-1">
-                            <span className="text-gray-500 text-xs shrink-0">Filter:</span>
+                            <span className="text-gray-500 text-xs shrink-0">しぼりこみ:</span>
                             <button
                                 onClick={() => setElementFilter(null)}
                                 className={`px-2 py-1 rounded text-xs font-bold transition-colors ${!elementFilter ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -183,7 +183,7 @@ const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({ isOpen, onClose
                         </div>
                         {/* Sort Options */}
                         <div className="flex gap-1 items-center">
-                            <span className="text-gray-500 text-xs shrink-0">Sort:</span>
+                            <span className="text-gray-500 text-xs shrink-0">ならびかえ:</span>
                             {(['default', 'hp', 'atk', 'element'] as SortOption[]).map(opt => (
                                 <button
                                     key={opt}
@@ -191,7 +191,7 @@ const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({ isOpen, onClose
                                     className={`px-2 py-1 rounded text-xs font-bold transition-colors ${sortBy === opt ? 'bg-orange-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                         }`}
                                 >
-                                    {opt === 'default' ? 'Default' : opt.toUpperCase()}
+                                    {opt === 'default' ? 'ふつう' : opt === 'hp' ? 'HP' : opt === 'atk' ? 'こうげき' : 'ぞくせい'}
                                 </button>
                             ))}
                         </div>
@@ -249,7 +249,7 @@ const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({ isOpen, onClose
                         </div>
                         {availableSkins.length === 0 && (
                             <div className="text-center text-gray-500 py-8">
-                                No monsters match the filter
+                                みつからなかった…
                             </div>
                         )}
                     </div>

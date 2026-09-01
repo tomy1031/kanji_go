@@ -45,7 +45,10 @@ export const loadCharData = (char: string): Promise<CharData | null> => {
     const p = (async (): Promise<CharData | null> => {
         for (const url of sourcesFor(char)) {
             try {
-                const res = await fetch(url);
+                // Per-source timeout: a hanging network (captive portal, dead
+                // wifi) must fall through to the next source / fallback UI
+                // instead of leaving the child staring at a blank canvas.
+                const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
                 if (!res.ok) continue;
                 const data = await res.json();
                 if (data && data.strokes) {

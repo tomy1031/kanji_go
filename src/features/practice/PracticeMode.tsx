@@ -19,7 +19,7 @@ interface PracticeModeProps {
 
 const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
     const { progress, maxUnlockedStage, profile, partners, scoreAttackBest, incrementPracticeCount, addExp, checkPracticeStageCompletion, recordDailyActivity } = useUserStore();
-    const { playBgm, playStroke } = useSound();
+    const { playBgm, playSfx, playStroke } = useSound();
     const [activeTab, setActiveTab] = useState<'NEW+LEARNING' | 'ALL' | 'LEARNING' | 'MASTERED'>('NEW+LEARNING');
     const [selectedStage, setSelectedStage] = useState<string | 'ALL'>('ALL'); // Changed to string for world-order keys
     const [searchTerm, setSearchTerm] = useState('');
@@ -89,6 +89,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
             incrementPracticeCount(practiceTarget);
             setCountPulse(p => p + 1);
             strokeComboRef.current = 0;
+            playSfx('select'); // completion chirp — writing should never be silent
 
             // Daily streak (counts once per day)
             const { milestone } = recordDailyActivity();
@@ -371,7 +372,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                                 className="w-16 h-16 object-contain"
                             />
                             <div className="flex-1">
-                                <div className="text-yellow-200 text-xs font-bold">🎉 NEW MONSTER UNLOCKED!</div>
+                                <div className="text-yellow-200 text-xs font-bold">🎉 あたらしい なかまが きた！</div>
                                 <div className="text-white text-lg font-bold">{MONSTER_DB[unlockedMonster].name}</div>
                                 <div className="text-yellow-200 text-xs">チャプターをマスターしました！</div>
                             </div>
@@ -452,7 +453,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                         onChange={(e) => setSelectedStage(e.target.value === 'ALL' ? 'ALL' : e.target.value)}
                         className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-cyan-500"
                     >
-                        <option value="ALL">All Stages</option>
+                        <option value="ALL">ぜんぶのステージ</option>
                         {availableStages.map((stage) => (
                             <option key={`${stage.world}-${stage.order}`} value={`${stage.world}-${stage.order}`}>
                                 {stage.name}
@@ -463,7 +464,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                     {/* Search */}
                     <input
                         type="text"
-                        placeholder="Search Kanji..."
+                        placeholder="かんじを さがす…"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 w-full md:w-64 focus:outline-none focus:border-cyan-500"
@@ -550,8 +551,8 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                                 >
                                     {/* Status Badge */}
                                     <div className="absolute top-2 right-2">
-                                        {isMastered && <span className="text-xs font-bold text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded">MASTER</span>}
-                                        {isLearning && <span className="text-xs font-bold text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded">LEARNING</span>}
+                                        {isMastered && <span className="text-xs font-bold text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded">マスター</span>}
+                                        {isLearning && <span className="text-xs font-bold text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded">れんしゅう中</span>}
                                         {isUnlearned && <span className="text-xs font-bold text-gray-400 bg-gray-700 px-2 py-1 rounded">NEW</span>}
                                     </div>
 
@@ -594,7 +595,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                 {filteredKanji.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-gray-500 mt-20">
                         <div className="text-4xl mb-4">📭</div>
-                        <p>No Kanji found matching your criteria.</p>
+                        <p>みつからなかった…</p>
                     </div>
                 )}
             </div>
