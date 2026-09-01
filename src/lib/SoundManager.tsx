@@ -229,7 +229,7 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             <button
                 onClick={toggleMute}
                 aria-label={isMuted ? 'ミュート解除' : 'ミュート'}
-                className="fixed bottom-20 right-2 z-[90] bg-black/40 text-white text-sm p-1.5 rounded-full opacity-60 hover:opacity-100 active:opacity-100 hover:bg-black/70 transition-opacity border border-white/10"
+                className="fixed bottom-20 right-1 z-[90] bg-black/40 text-white text-xs p-1 rounded-full opacity-50 hover:opacity-100 active:opacity-100 hover:bg-black/70 transition-opacity border border-white/10"
             >
                 {isMuted ? '🔇' : '🔊'}
             </button>

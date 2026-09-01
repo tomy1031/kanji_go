@@ -58,8 +58,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   const [enemyHp, setEnemyHp] = useState(100);
   const [currentEnemy, setCurrentEnemy] = useState(ENEMY_DB[0]);
 
-  // Battle message not used in new design
-  const [, setBattleMessage] = useState("Battle Start!");
+  // Battle message banner (restored — it was being discarded, leaving the
+  // child with no verbal feedback about what just happened)
+  const [battleMessage, setBattleMessage] = useState("バトルスタート！");
   const [evolutionMessage, setEvolutionMessage] = useState<string | null>(null);
   const [levelUpMessage, setLevelUpMessage] = useState<boolean>(false);
   const [currentKanji, setCurrentKanji] = useState<KanjiData | null>(null);
@@ -83,6 +84,15 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     isCritical?: boolean;
     isWeak?: boolean;
   } | null>(null);
+  // Damage the PLAYER just took (rendered over the player frame)
+  const [playerDamageNumber, setPlayerDamageNumber] = useState<{
+    value: number;
+    id: number;
+    isWeak: boolean;
+  } | null>(null);
+  // Mercy window: rapid consecutive mis-strokes only hurt once
+  const lastDamageMistakeRef = useRef(0);
+  const canvasHandleRef = useRef<import('../../components/KanjiWriterCanvas').KanjiWriterHandle>(null);
   const [criticalEffect, setCriticalEffect] = useState<boolean>(false);
 
   // Stage State
@@ -136,6 +146,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   // Refs for tracking previous values and unique IDs
   const prevLevelRef = useRef(stats.playerLevel);
   const effectIdCounter = useRef(0);
+  const bossBgmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 【修正1】Stateの即時参照用にRefを追加
   const completedKanjiIdsRef = useRef<string[]>([]);
 
@@ -163,8 +174,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
       // Stop any playing music first
       stopBgm();
       playSfx("boss_siren");
-      // Delay boss BGM to let siren play first
-      setTimeout(() => {
+      // Delay boss BGM to let siren play first (cleared on unmount so boss
+      // music can't start over the world map after fleeing)
+      bossBgmTimerRef.current = setTimeout(() => {
         playBgm("boss");
       }, 1500);
     } else {
@@ -207,6 +219,10 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     preloadCharData(kanjis.map((k) => k.char));
 
     setBattleState("battle");
+
+    return () => {
+      if (bossBgmTimerRef.current) clearTimeout(bossBgmTimerRef.current);
+    };
   }, [world, order, profile.currentVersion, battleState, maxPlayerHp, currentPartner, stats.playerLevel, playBgm, stopBgm, playSfx]);
 
   // Check for evolution
@@ -230,7 +246,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
           evolvePartner(nextFormId);
           playSfx("evolve");
           setEvolutionMessage(
-            `Your partner evolved into ${MONSTER_DB[nextFormId].name}!`
+            `${MONSTER_DB[nextFormId].name}に しんかした！！`
           );
           setTimeout(() => setEvolutionMessage(null), 3000);
         }
@@ -313,10 +329,12 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   const enemyAttack = () => {
     // Use scaled attack
     let damage = enemyStats.attack;
+    let isWeak = false;
 
     // Check Weakness (Enemy Element vs Player Weakness)
     if (currentPartner?.weakness === currentEnemy.element) {
       damage *= 2;
+      isWeak = true;
     }
     // Check Resistance (Enemy Element vs Player Resistance)
     else if (isResistant(currentEnemy.element, currentPartner?.element)) {
@@ -329,10 +347,20 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     playSfx("hit");
     setTimeout(() => setIsPlayerHit(false), 500);
 
-    setBattleMessage(`${currentEnemy.name} attacks! ${damage} damage!`);
+    // Show WHY and HOW MUCH on the player's side — damage with no number or
+    // cause reads as random punishment to a child
+    setPlayerDamageNumber({ value: damage, id: getUniqueId(), isWeak });
+    setTimeout(() => setPlayerDamageNumber(null), 1000);
+    setBattleMessage(
+      isWeak
+        ? `${currentEnemy.name}の こうげき！ こうかは ばつぐん… -${damage}`
+        : `${currentEnemy.name}の こうげき！ -${damage}`
+    );
 
     if (newPlayerHp === 0) {
-      setBattleMessage("You lost...");
+      setBattleMessage("まけてしまった…");
+      stopBgm();
+      playSfx("mistake");
       setBattleState("lose");
       setShowDefeatModal(true);
     }
@@ -367,7 +395,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     // Check Weakness (Player Element vs Enemy Weakness)
     if (currentEnemy?.weakness === currentPartner?.element) {
       damage *= 2;
-      setBattleMessage("Super Effective! " + damage + " damage!");
+      setBattleMessage(`こうかは ばつぐんだ！ ${damage}ダメージ！`);
       setCriticalEffect(true);
       setTimeout(() => setCriticalEffect(false), 500);
       isCritical = true;
@@ -375,9 +403,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     // Check Resistance (Player Element vs Enemy Resistance)
     else if (isResistant(currentPartner?.element, currentEnemy?.element)) {
       damage = Math.floor(damage * 0.5);
-      setBattleMessage("Not very effective... " + damage + " damage.");
+      setBattleMessage(`いまいちだ… ${damage}ダメージ`);
     } else {
-      setBattleMessage("Hit! " + damage + " damage!");
+      setBattleMessage(`ヒット！ ${damage}ダメージ！`);
     }
 
     if (isPerfect) {
@@ -385,7 +413,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
       isCritical = true;
       setPerfectFlash(true);
       setTimeout(() => setPerfectFlash(false), 900);
-      setBattleMessage("PERFECT! " + damage + " damage!");
+      setBattleMessage(`パーフェクト！！ ${damage}ダメージ！`);
     }
 
     // Impact shake — the finishing stroke should physically land
@@ -431,7 +459,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
       // Next Kanji immediately
       setTimeout(() => {
         pickNextKanji();
-      }, 1000);
+      }, 400);
     }
   };
 
@@ -442,7 +470,18 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     playSfx("mistake");
     setCombo(0); // Reset combo on mistake
     setMistakeCount(prev => prev + 1); // Track mistakes
-    setBattleMessage("Missed! Enemy attacks!");
+
+    // Mercy window: a child scribbling repeatedly used to eat one enemy
+    // attack PER mis-stroke (5 quick misses could end the battle). Within
+    // the window we still reset the combo and count the mistake, but the
+    // enemy only attacks once.
+    const now = Date.now();
+    if (now - lastDamageMistakeRef.current < 1500) {
+      setBattleMessage("ミス！ おちついて かこう");
+      return;
+    }
+    lastDamageMistakeRef.current = now;
+    setBattleMessage("ミス！ てきの こうげき！");
 
     // Enemy Attacks on Miss
     enemyAttack();
@@ -461,7 +500,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
 
   const handleVictory = () => {
     playSfx("win");
-    setBattleMessage(`You defeated ${currentEnemy.name}!`);
+    setBattleMessage(`${currentEnemy.name}を たおした！`);
     setBattleState("win");
 
     // Clutch win: barely survived — memorable moments deserve a badge
@@ -533,8 +572,23 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     setIsClutchWin(false);
     setCompletedKanjiIds([]);
     setBattleState("battle");
-    setBattleMessage("BONUS BATTLE!");
+    setBattleMessage("ボーナスバトル！ きをつけて！");
     playSfx("boss_siren");
+  };
+
+  // Instant retry after defeat — no re-navigating chapter → stage.
+  // Resetting battleState to "start" re-runs the init effect from scratch.
+  const handleRetry = () => {
+    setShowDefeatModal(false);
+    setBonusRound(0);
+    setCombo(0);
+    setMistakeCount(0);
+    setCompletedKanjiIds([]);
+    setCurrentKanji(null);
+    setDrop(null);
+    setIsClutchWin(false);
+    setBattleMessage("バトルスタート！");
+    setBattleState("start");
   };
 
   const handleReturnToMap = () => {
@@ -550,7 +604,14 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
     handleReturnToMap();
   };
 
-  if (!currentKanji) return <div>Loading...</div>;
+  if (!currentKanji) {
+    return (
+      <div className="w-full h-dvh bg-gray-900 text-white flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 border-4 border-gray-700 border-t-cyan-400 rounded-full animate-spin" />
+        <div className="text-sm text-gray-400 font-bold">バトルの じゅんびちゅう…</div>
+      </div>
+    );
+  }
 
 
 
@@ -727,7 +788,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                     exit={{ opacity: 0 }}
                     className="absolute top-0 left-1/2 transform -translate-x-1/2"
                   >
-                    <span className="text-xs md:text-sm font-black text-yellow-400 drop-shadow-lg">CRITICAL!</span>
+                    <span className="text-xs md:text-sm font-black text-yellow-400 drop-shadow-lg">クリティカル！</span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -819,7 +880,32 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 flex items-center justify-center"
                   >
-                    <span className="text-sm md:text-lg font-black text-yellow-400 drop-shadow-lg">LEVEL UP!</span>
+                    <span className="text-sm md:text-lg font-black text-yellow-400 drop-shadow-lg">レベルアップ！</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Damage taken by the player (number + reason) */}
+              <AnimatePresence>
+                {playerDamageNumber && (
+                  <motion.div
+                    key={playerDamageNumber.id}
+                    initial={{ opacity: 1, y: 0, scale: 0.6 }}
+                    animate={{ opacity: 0, y: 26, scale: 1.15 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20"
+                  >
+                    <span
+                      className="text-2xl md:text-3xl font-black text-red-400"
+                      style={{ textShadow: '2px 2px 0 #7f1d1d, 0 0 12px #ef4444' }}
+                    >
+                      -{playerDamageNumber.value}
+                    </span>
+                    {playerDamageNumber.isWeak && (
+                      <span className="text-[9px] md:text-[10px] font-black text-orange-300 bg-black/60 px-1.5 rounded-full mt-0.5">
+                        ばつぐん…！
+                      </span>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -886,6 +972,20 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             className="absolute inset-0 pointer-events-none z-20 animate-pulse"
             style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(220,38,38,0.4) 100%)' }}
           />
+        )}
+
+        {/* Battle message banner — the game's voice, in Japanese */}
+        {battleMessage && battleState === "battle" && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 max-w-[94%]">
+            <motion.div
+              key={battleMessage}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-black/60 backdrop-blur-sm text-white text-xs md:text-sm font-bold px-4 py-1.5 rounded-full border border-white/15 whitespace-nowrap overflow-hidden text-ellipsis text-center"
+            >
+              {battleMessage}
+            </motion.div>
+          </div>
         )}
 
         {/* PERFECT flash */}
@@ -970,6 +1070,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             />
             {battleState !== "win" && currentKanji && (
               <KanjiWriterCanvas
+                ref={canvasHandleRef}
                 char={currentKanji.char}
                 size={canvasSize}
                 onCorrectStroke={handleCorrectStroke}
@@ -977,6 +1078,20 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                 onMistake={handleWriteFail}
                 quizMode={true}
               />
+            )}
+            {/* Stroke-order hint: a struggling child always has a way forward.
+                Costs the current combo so it stays a choice, not a freebie. */}
+            {battleState === "battle" && currentKanji && (
+              <button
+                onClick={() => {
+                  canvasHandleRef.current?.animateStroke();
+                  setCombo(0);
+                  setBattleMessage("書きじゅんを おぼえよう！");
+                }}
+                className="absolute -top-3 -right-2 z-20 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 text-[11px] font-black px-2.5 py-1 rounded-full border-2 border-yellow-600 shadow-lg active:scale-95 transition-transform"
+              >
+                👀 ヒント
+              </button>
             )}
             {battleState === "win" && (
               <div className="flex flex-col items-center justify-center w-full h-full bg-green-900/50 text-green-400">
@@ -1034,11 +1149,8 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                   />
                 </div>
                 <p className="text-gray-300 text-lg mb-2">
-                  You defeated{" "}
-                  <span className="text-white font-bold">
-                    {currentEnemy.name}
-                  </span>
-                  !
+                  <span className="text-white font-bold">{currentEnemy.name}</span>
+                  を たおした！
                 </p>
 
                 {isNewSkin && (
@@ -1047,7 +1159,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                     animate={{ scale: 1 }}
                     className="bg-yellow-500 text-black font-bold px-4 py-1 rounded-full text-sm mb-2 animate-pulse"
                   >
-                    NEW MONSTER GET!
+                    あたらしい なかまを ゲット！
                   </motion.div>
                 )}
 
@@ -1116,13 +1228,13 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
               {/* Stats Comparison */}
               <div className="bg-gray-800 rounded-lg p-4 mb-4 relative z-10 text-left">
                 <h3 className="text-gray-400 text-xs font-bold mb-2 uppercase tracking-wider">
-                  Stats Comparison
+                  たたかいの きろく
                 </h3>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div className="text-gray-500"></div>
-                  <div className="text-center font-bold text-cyan-400">YOU (Lv.{stats.playerLevel})</div>
+                  <div className="text-center font-bold text-cyan-400">あなた (Lv.{stats.playerLevel})</div>
                   <div className="text-center font-bold text-red-400">
-                    ENEMY (Lv.{stageEnemyLevel})
+                    あいて (Lv.{effectiveEnemyLevel})
                   </div>
 
                   <div className="text-gray-400 font-mono">HP</div>
@@ -1190,21 +1302,27 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             className="absolute inset-0 z-50 flex bg-black/80 backdrop-blur-sm overflow-y-auto py-6"
           >
             <div className="bg-gray-900 border-2 border-red-600 p-6 md:p-8 rounded-2xl max-w-md w-[90%] text-center shadow-[0_0_50px_rgba(220,38,38,0.3)] m-auto">
-              <h2 className="text-5xl font-black text-red-600 mb-6 drop-shadow-md tracking-widest">
-                GAMEOVER
+              <h2 className="text-4xl md:text-5xl font-black text-red-600 mb-4 drop-shadow-md tracking-widest">
+                まけてしまった…
               </h2>
 
-              <div className="text-6xl mb-6">💀</div>
+              <div className="text-6xl mb-4">💀</div>
 
-              <p className="text-gray-300 mb-8">
-                Don't give up! Review your Kanji and try again.
+              <p className="text-gray-300 mb-6 text-sm">
+                だいじょうぶ！ なんども かけば つよくなる！
               </p>
 
               <button
-                onClick={handleReturnToMap}
-                className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-colors text-lg"
+                onClick={handleRetry}
+                className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:brightness-110 text-white font-black py-4 rounded-xl transition-all text-lg mb-3 border border-red-400/50 shadow-[0_0_16px_rgba(220,38,38,0.4)] active:scale-[0.98]"
               >
-                RETURN TO MAP
+                🔥 もういちど！
+              </button>
+              <button
+                onClick={handleReturnToMap}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+              >
+                マップへ もどる
               </button>
             </div>
           </motion.div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { OnlineRoom } from './types';
 import { GameVersion } from '../../types';
+import { getKanjiForStage } from '../../lib/kanjiUtils';
 import { networkManager } from './NetworkManager';
 import { useOnlineStore } from './onlineStore';
 
@@ -19,15 +20,17 @@ const RoomBrowser: React.FC = () => {
         try {
             await networkManager.joinRoom(roomId);
 
-            // TODO: Get room details from host via P2P
-            // For now, create a placeholder room
+            // Seed with a default question list so the battle never starts
+            // empty; the host's real kanjiList replaces it via the READY
+            // handshake response.
+            const defaultKanji = Array.from(new Set(getKanjiForStage(1, 1, GameVersion.RED).map(k => k.char)));
             const room: OnlineRoom = {
                 id: roomId,
                 hostName: 'Host',
                 level: GameVersion.RED,
                 world: 1,
                 order: 1,
-                kanjiList: [],
+                kanjiList: defaultKanji,
                 createdAt: Date.now(),
             };
 

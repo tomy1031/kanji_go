@@ -22,8 +22,11 @@ type Scene = 'PRELOAD' | 'OPENING' | 'LAUNCHER' | 'TITLE' | 'MENU' | 'MAP' | 'BA
 // Hidden command: Press Shift+D 5 times within 2 seconds to open debug mode
 const DEBUG_KEY_COUNT = 5;
 const DEBUG_KEY_TIMEOUT = 2000;
-// Mobile: 5 rapid taps anywhere on screen
-const DEBUG_TAP_COUNT = 10;
+// Mobile: rapid taps in the top-left corner only. Kids writing kanji generate
+// fast touchend events all over the screen, so a whole-screen counter used to
+// open the debug panel (which contains a save-wipe button) mid-battle.
+const DEBUG_TAP_COUNT = 7;
+const DEBUG_CORNER_SIZE = 56; // px from the top-left corner
 
 function App() {
   const [scene, setScene] = useState<Scene>('PRELOAD');
@@ -63,8 +66,13 @@ function App() {
       }
     };
 
-    // Mobile: 5 rapid taps anywhere on screen (using touchend for better detection)
-    const handleTouch = () => {
+    // Mobile: rapid taps in the tiny top-left corner (never hit accidentally
+    // while writing on the canvas)
+    const handleTouch = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (!t || t.clientX > DEBUG_CORNER_SIZE || t.clientY > DEBUG_CORNER_SIZE) {
+        return;
+      }
       const now = Date.now();
       debugTaps.current.push(now);
 

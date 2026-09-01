@@ -24,7 +24,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
     const [isMatching, setIsMatching] = useState(false);
     const [isSearching, setIsSearching] = useState(false); // random-match lobby wait
     const matchTokenRef = useRef(0); // invalidates in-flight matches on cancel
-    const { playerStats, resetStats, setCurrentRoom, setConnectionStatus } = useOnlineStore();
+    const { playerStats, setCurrentRoom, setConnectionStatus } = useOnlineStore();
     const { profile } = useUserStore();
 
     const handleBackToMenu = () => {
@@ -332,17 +332,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                             </ul>
                         </div>
 
-                        {/* Reset Button (Debug) */}
-                        <button
-                            onClick={() => {
-                                if (window.confirm('本当に成績をリセットしますか？')) {
-                                    resetStats();
-                                }
-                            }}
-                            className="w-full px-4 py-3 bg-red-900/50 hover:bg-red-900/70 border border-red-500 rounded-lg text-red-200 text-sm transition-colors"
-                        >
-                            成績をリセット (デバッグ用)
-                        </button>
+
                     </div>
                 );
         }

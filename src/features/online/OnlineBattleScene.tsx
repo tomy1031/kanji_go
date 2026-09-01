@@ -54,7 +54,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
     };
     const { profile, partners, stats: userStats } = useUserStore();
     const myPlayerId = useUserStore((state) => state.ensurePlayerId());
-    const { playBgm, playSfx } = useSound();
+    const { playBgm, playSfx, playStroke } = useSound();
 
     // Derived Stats (Calculated from UserStore)
     const currentPartner = MONSTER_DB[partners.currentMonsterId] || {
@@ -79,7 +79,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
     const [opponentRating, setOpponentRating] = useState(1000);
     const [opponentMonsterId, setOpponentMonsterId] = useState<string>('wolf_fire');
     const opponentPlayerIdRef = useRef<string | null>(null);
-    const [message, setMessage] = useState('Waiting for opponent...');
+    const [message, setMessage] = useState('あいてを まってるよ…');
     const [combo, setCombo] = useState(0);
 
     // Initial Opponent Name Setup from Store
@@ -280,7 +280,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                 // Both sides transition to BATTLE on receiving READY (Host receives Guest's, Guest receives Host's)
                 if (gameState === 'WAITING') {
                     setGameState('BATTLE');
-                    setMessage('BATTLE START!');
+                    setMessage('バトルスタート！');
                     setTimeout(() => setMessage(''), 2000);
                 }
                 break;
@@ -409,14 +409,14 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
         if (after.tierIndex > before.tierIndex) {
             setMessage(`🎉 ${after.tier.icon} ${after.tier.name}に しょうかく！！`);
         } else {
-            setMessage('YOU WIN!');
+            setMessage('🏆 かった！！');
         }
     };
 
     const handleDefeat = () => {
         if (gameState === 'VICTORY' || gameState === 'DEFEAT') return;
         setGameState('DEFEAT');
-        setMessage('YOU LOSE...');
+        setMessage('まけた…');
         playSfx('mistake');
 
         incrementLosses();
@@ -556,15 +556,11 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                                 </div>
                             )}
 
-                            <div className="text-xs text-gray-500 font-mono mt-2">
-                                Status: {connectionStatus} <br />
-                                {networkManager.isHosting() ? '(HOST)' : '(GUEST)'}
-                                {errorMessage && (
-                                    <div className="text-red-400 font-bold mt-1">
-                                        ERROR: {errorMessage}
-                                    </div>
-                                )}
-                            </div>
+                            {errorMessage && (
+                                <div className="text-xs text-red-400 font-bold mt-2">
+                                    ⚠️ {errorMessage}
+                                </div>
+                            )}
 
                             <button
                                 onClick={handleLeave}
@@ -814,7 +810,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                             onClick={handleLeave}
                             className="px-10 py-4 bg-white text-black font-black text-xl rounded-full shadow-[0_0_20px_rgba(255,255,255,0.5)] hover:scale-105 active:scale-95 transition-transform flex items-center gap-2"
                         >
-                            <span>↩️</span> Return to Lobby
+                            <span>↩️</span> ロビーへ もどる
                         </button>
                     </div>
                 )}
@@ -846,6 +842,10 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                                     char={currentKanjiChar}
                                     size={canvasSize}
                                     quizMode={true}
+                                    onCorrectStroke={() => {
+                                        setCombo(prev => prev + 1);
+                                        playStroke(combo + 1);
+                                    }}
                                     onComplete={handleWriteComplete}
                                     onMistake={() => {
                                         playSfx('mistake');
@@ -884,7 +884,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                     {/* Waiting Message if no canvas */}
                     {gameState === 'WAITING' && (
                         <div style={{ width: canvasSize, height: canvasSize }} className="flex items-center justify-center bg-black/10 rounded-xl border-4 border-dashed border-[#8b7355]/30">
-                            <span className="text-[#8b7355] font-bold text-lg animate-pulse">Battle Area</span>
+                            <span className="text-[#8b7355] font-bold text-lg animate-pulse">バトルエリア</span>
                         </div>
                     )}
                 </div>

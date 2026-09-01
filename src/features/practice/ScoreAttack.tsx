@@ -20,7 +20,8 @@ const ScoreAttack: React.FC<ScoreAttackProps> = ({ onBack }) => {
     const { playSfx, playStroke } = useSound();
     const canvasSize = useCanvasSize(280, 0.42);
 
-    const [phase, setPhase] = useState<'ready' | 'playing' | 'result'>('ready');
+    const [phase, setPhase] = useState<'ready' | 'countdown' | 'playing' | 'result'>('ready');
+    const [countdown, setCountdown] = useState(3);
     const [timeLeft, setTimeLeft] = useState(SCORE_ATTACK_SECONDS);
     const [score, setScore] = useState(0);
     const [index, setIndex] = useState(0);
@@ -74,8 +75,32 @@ const ScoreAttack: React.FC<ScoreAttackProps> = ({ onBack }) => {
         setRunId(r => r + 1);
         setTimeLeft(SCORE_ATTACK_SECONDS);
         setIsNewBest(false);
-        setPhase('playing');
+        setCountdown(3);
+        setPhase('countdown');
         playSfx('select');
+    };
+
+    // 3-2-1 countdown before the clock starts
+    useEffect(() => {
+        if (phase !== 'countdown') return;
+        if (countdown <= 0) {
+            setPhase('playing');
+            return;
+        }
+        const t = setTimeout(() => {
+            playSfx('select');
+            setCountdown(c => c - 1);
+        }, 800);
+        return () => clearTimeout(t);
+    }, [phase, countdown, playSfx]);
+
+    // Skip an unknown kanji (small time penalty) — one hard character must
+    // not eat the whole 60 seconds
+    const handlePass = () => {
+        if (phase !== 'playing') return;
+        playSfx('mistake');
+        setTimeLeft(t => Math.max(1, t - 3));
+        setIndex(i => i + 1);
     };
 
     const handleComplete = () => {
@@ -115,6 +140,17 @@ const ScoreAttack: React.FC<ScoreAttackProps> = ({ onBack }) => {
                     </div>
                 )}
 
+                {phase === 'countdown' && (
+                    <motion.div
+                        key={countdown}
+                        initial={{ scale: 2.2, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="text-8xl font-black text-cyan-300 drop-shadow-[0_0_30px_rgba(34,211,238,0.7)]"
+                    >
+                        {countdown > 0 ? countdown : 'GO!'}
+                    </motion.div>
+                )}
+
                 {phase === 'playing' && currentKanji && (
                     <>
                         {/* Timer + Score */}
@@ -138,6 +174,12 @@ const ScoreAttack: React.FC<ScoreAttackProps> = ({ onBack }) => {
                             onComplete={handleComplete}
                             onMistake={() => playSfx('mistake')}
                         />
+                        <button
+                            onClick={handlePass}
+                            className="mt-2 px-5 py-1.5 rounded-full text-sm font-bold bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600 active:scale-95 transition-transform"
+                        >
+                            パス（-3びょう）→
+                        </button>
                     </>
                 )}
 

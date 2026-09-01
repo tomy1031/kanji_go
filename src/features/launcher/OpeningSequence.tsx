@@ -42,10 +42,15 @@ const OpeningSequence: React.FC<OpeningSequenceProps> = ({ onComplete }) => {
 
     return (
         <motion.div
-            className="fixed inset-0 z-50 bg-[#0a192f] flex items-center justify-center overflow-hidden font-mono"
+            className="fixed inset-0 z-50 bg-[#0a192f] flex items-center justify-center overflow-hidden font-mono cursor-pointer"
             animate={{ opacity: step === 'fade' ? 0 : 1 }}
             transition={{ duration: 0.5 }}
+            onClick={onComplete}
         >
+            {/* Skip hint */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 text-[11px] text-gray-500 animate-pulse pointer-events-none">
+                タップで スキップ
+            </div>
             {/* Matrix Background Effect (Simplified) */}
             <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden">
                 <div className="animate-pulse text-green-500 text-xs leading-3 break-all">

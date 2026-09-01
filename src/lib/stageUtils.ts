@@ -36,7 +36,7 @@ export const getStages = (maxUnlockedStage: number, level: GameVersion): StageDa
             stages.push({
                 world,
                 order,
-                name: isBoss ? `Chapter ${world} BOSS` : `Stage ${world}-${order}`,
+                name: isBoss ? `だい${world}しょう ボス` : `ステージ ${world}-${order}`,
                 kanjiCount: 0,
                 isBoss,
                 status,
