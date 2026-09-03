@@ -120,6 +120,21 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
         return () => clearInterval(iv);
     }, []);
 
+    // If the paired opponent never arrives (they cancelled, or lost their
+    // connection during the handoff), don't strand the player on the waiting
+    // screen — go back to matchmaking with an explanation.
+    useEffect(() => {
+        if (gameState !== 'WAITING') return;
+        const t = setTimeout(() => {
+            if (networkManager.getConnectionStatus() !== 'connected') {
+                useOnlineStore.getState().setErrorMessage('あいてと つながりませんでした。もういちど さがしてね。');
+                handleLeave();
+            }
+        }, 25000);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gameState]);
+
     // Heartbeat / Disconnect Detection (3 consecutive failed pings = disconnect)
     const lastPingRef = useRef<number>(0);
     const failedPingCountRef = useRef<number>(0);
@@ -483,11 +498,6 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
     const currentKanjiChar = currentRoom?.kanjiList?.[currentKanjiIndex] || '漢';
     const canvasSize = useCanvasSize(280, 0.36);
 
-    // Safe room access
-    const roomIdDisplay = currentRoom?.id || "Unknown Room";
-    // Random matches meet on an auto-generated private pair channel — showing
-    // that code (or passphrase instructions) would only confuse players.
-    const isRandomPair = networkManager.getRoomId()?.startsWith('pair-') ?? false;
 
     return (
         <div className="w-full h-[100dvh] text-white flex flex-col relative overflow-hidden">
@@ -512,49 +522,17 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                     />
                 </div>
 
-                {/* Persistent Room ID Display (Top Left) */}
-                <div className="absolute top-4 left-4 z-40 bg-black/50 px-3 py-1 rounded border border-white/20">
-                    <div className="text-[10px] text-gray-400 font-mono">ROOM ID</div>
-                    <div className="text-sm font-bold text-white font-mono select-all">
-                        {roomIdDisplay}
-                    </div>
-                </div>
-
                 {/* Waiting Overlay */}
                 {gameState === 'WAITING' && (
                     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
                         <div className="flex flex-col items-center gap-4 animate-fade-in text-center p-6 md:p-8 bg-gray-900 rounded-2xl border border-blue-500 shadow-2xl max-w-md w-full mx-4">
                             <div className="text-yellow-400 font-black text-xl md:text-2xl animate-pulse">あいてを まっています…</div>
 
-                            {isRandomPair ? (
-                                <div className="w-full bg-black px-6 py-5 rounded-xl border-2 border-dashed border-purple-500/60">
-                                    <div className="text-3xl mb-2">🌍</div>
-                                    <div className="text-xl font-black text-white">ランダムマッチ</div>
-                                    <div className="text-xs text-purple-300 mt-2">あいてと せつぞくしています…</div>
-                                </div>
-                            ) : (
-                                <div className="w-full bg-black px-6 py-5 rounded-xl border-2 border-dashed border-gray-600 relative overflow-hidden group">
-                                    <div className="text-xs text-gray-400 mb-2 font-mono uppercase tracking-widest">
-                                        {networkManager.isMatchMode() ? 'あいことば' : 'Room ID'}
-                                    </div>
-                                    <div className="text-3xl md:text-4xl font-mono font-bold text-white tracking-widest select-all break-all">
-                                        {roomIdDisplay}
-                                    </div>
-                                    {networkManager.isMatchMode() && (
-                                        <div className="text-xs text-cyan-300 mt-3">
-                                            あいても おなじ あいことばで「たたかう！」を押すと はじまるよ
-                                        </div>
-                                    )}
-                                    <div className="flex justify-center mt-4">
-                                        <button
-                                            onClick={() => navigator.clipboard.writeText(roomIdDisplay)}
-                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-full flex items-center gap-2 transition-colors"
-                                        >
-                                            <span>📋</span> コピー
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                            <div className="w-full bg-black/60 px-6 py-6 rounded-xl border-2 border-dashed border-cyan-500/50">
+                                <div className="text-4xl mb-2">⚔️</div>
+                                <div className="text-lg font-black text-white">あいてと せつぞく中…</div>
+                                <div className="text-xs text-cyan-300 mt-2">もうすぐ はじまるよ！</div>
+                            </div>
 
                             {errorMessage && (
                                 <div className="text-xs text-red-400 font-bold mt-2">
@@ -566,7 +544,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                                 onClick={handleLeave}
                                 className="mt-4 px-8 py-3 bg-red-900/50 hover:bg-red-800/50 border border-red-500 text-red-200 rounded-lg text-sm font-bold transition-colors w-full"
                             >
-                                キャンセル (Lobbyへ戻る)
+                                やめて ロビーへ もどる
                             </button>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { type UserState, GameVersion } from '../types';
 import { getLevelFromExp } from '../lib/levelUtils';
 import { getAllKanji } from '../lib/kanjiUtils';
@@ -515,6 +515,40 @@ export const useUserStore = create<UserStore>()(
         }),
         {
             name: 'kanjigo-storage',
+            version: 1,
+            storage: createJSONStorage(() => localStorage),
+            // Persist only real progress. Session/UI state (which stage screen
+            // you were on) must not be written on every set().
+            partialize: (state) => ({
+                profile: state.profile,
+                stats: state.stats,
+                partners: state.partners,
+                progress: state.progress,
+                maxUnlockedStage: state.maxUnlockedStage,
+                stageRatings: state.stageRatings,
+                friends: state.friends,
+                battleRecords: state.battleRecords,
+                debugSettings: state.debugSettings,
+                dailyStreak: state.dailyStreak,
+                scoreAttackBest: state.scoreAttackBest,
+                clutchWins: state.clutchWins,
+            }),
+            // zustand's default merge is shallow, so a saved `profile` /
+            // `partners` / `stats` object REPLACED the defaults wholesale and
+            // any newly added nested field came back `undefined` for existing
+            // players. Merge one level into the nested objects instead.
+            merge: (persisted, current) => {
+                const saved = (persisted || {}) as Partial<UserState>;
+                return {
+                    ...current,
+                    ...saved,
+                    profile: { ...current.profile, ...(saved.profile || {}) },
+                    stats: { ...current.stats, ...(saved.stats || {}) },
+                    partners: { ...current.partners, ...(saved.partners || {}) },
+                    debugSettings: { ...current.debugSettings, ...(saved.debugSettings || {}) },
+                };
+            },
+            migrate: (persisted) => persisted as UserState,
         }
     )
 );

@@ -1,400 +1,281 @@
-import React, { useState, useRef } from 'react';
-import RoomCreation from './RoomCreation';
-import RoomBrowser from './RoomBrowser';
-import FriendList from './FriendList';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useOnlineStore } from './onlineStore';
-import { networkManager } from './NetworkManager';
+import { networkManager, MatchCancelledError, NoOpponentError } from './NetworkManager';
 import { useUserStore } from '../../store/userStore';
-import { GameVersion } from '../../types';
-import { getKanjiForStage, getAllKanji } from '../../lib/kanjiUtils';
+import { getAllKanji } from '../../lib/kanjiUtils';
 import { getRank } from './rankUtils';
 
-type TabType = 'quick' | 'friends' | 'create' | 'join' | 'stats';
-
-const QUICK_MATCH_KANJI_COUNT = 20;
+// One question set per match: a shuffled slice of the version's kanji. Both
+// players are matched inside the same version's lobby, so the pool always
+// agrees and nobody has to choose anything.
+const MATCH_KANJI_COUNT = 20;
+const SEARCH_TIMEOUT_MS = 60000;
 
 interface OnlineLobbyProps {
     onBack: () => void;
 }
 
 const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
-    const [activeTab, setActiveTab] = useState<TabType>('quick');
-    const [matchWord, setMatchWord] = useState('');
-    const [quickError, setQuickError] = useState<string | null>(null);
-    const [isMatching, setIsMatching] = useState(false);
-    const [isSearching, setIsSearching] = useState(false); // random-match lobby wait
-    const matchTokenRef = useRef(0); // invalidates in-flight matches on cancel
     const { playerStats, setCurrentRoom, setConnectionStatus } = useOnlineStore();
-    const { profile } = useUserStore();
+    const { profile, setProfile } = useUserStore();
 
-    const handleBackToMenu = () => {
-        onBack();
-    };
+    const [isSearching, setIsSearching] = useState(false);
+    const [waitingCount, setWaitingCount] = useState(0);
+    const [elapsed, setElapsed] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [nameDraft, setNameDraft] = useState(profile.name);
+    const searchStartRef = useRef(0);
 
-    // My question set (used if I end up as host; the host's list wins)
-    const buildMyRoom = (displayId: string) => {
-        const pool = getAllKanji().filter(k => k.level === profile.currentVersion).map(k => k.char);
-        const shuffled = [...new Set(pool)].sort(() => Math.random() - 0.5);
-        const kanjiList = shuffled.slice(0, QUICK_MATCH_KANJI_COUNT);
-        if (kanjiList.length === 0) {
-            kanjiList.push(...getKanjiForStage(1, 1, GameVersion.RED).map(k => k.char));
-        }
-        setCurrentRoom({
-            id: displayId,
-            hostName: profile.name,
-            level: profile.currentVersion,
-            world: 1,
-            order: 1,
-            kanjiList,
-            createdAt: Date.now(),
-        });
-    };
+    // Never leave matchmaking running when the screen goes away
+    useEffect(() => {
+        return () => {
+            networkManager.cancelMatchmaking();
+        };
+    }, []);
 
-    // Symmetric passphrase match: both players enter the SAME word and tap
-    // battle — no room creation, no ID sharing, host decided automatically.
-    const handleQuickMatch = async (rawCode: string) => {
-        const code = rawCode.trim().toLowerCase().replace(/\s+/g, '-');
-        if (!code) {
-            setQuickError('あいことばを いれてね');
-            return;
-        }
-        setQuickError(null);
-        setIsMatching(true);
-        try {
-            setConnectionStatus('connecting');
-            await networkManager.joinMatch(code);
-            buildMyRoom(code);
-            setConnectionStatus('connected');
-        } catch (err) {
-            console.error('Quick match failed:', err);
-            setQuickError('つながりませんでした。もういちど ためしてね');
-            setConnectionStatus('error');
-        } finally {
-            setIsMatching(false);
-        }
-    };
+    // Elapsed-time ticker while searching
+    useEffect(() => {
+        if (!isSearching) return;
+        const iv = setInterval(() => {
+            setElapsed(Math.floor((Date.now() - searchStartRef.current) / 1000));
+        }, 500);
+        return () => clearInterval(iv);
+    }, [isSearching]);
 
-    // Random match: first-come-first-served pairing in a shared waiting lobby,
-    // then the pair moves to its own private channel.
-    const handleRandomMatch = async () => {
-        setQuickError(null);
-        setIsMatching(true);
+    const handleBattle = async () => {
+        setError(null);
+        setWaitingCount(0);
+        setElapsed(0);
+        searchStartRef.current = Date.now();
         setIsSearching(true);
-        const token = ++matchTokenRef.current;
+        setConnectionStatus('connecting');
+
         try {
-            setConnectionStatus('connecting');
-            await networkManager.joinRandomMatch();
-            if (matchTokenRef.current !== token) return; // cancelled while searching
-            buildMyRoom('ランダムマッチ');
+            await networkManager.joinQuickMatch(profile.currentVersion, {
+                timeoutMs: SEARCH_TIMEOUT_MS,
+                onWaiting: (count) => setWaitingCount(count),
+            });
+
+            // My question set (used when I turn out to be the host; the host's
+            // list is what both sides play).
+            const pool = getAllKanji()
+                .filter((k) => k.level === profile.currentVersion)
+                .map((k) => k.char);
+            const kanjiList = [...new Set(pool)]
+                .sort(() => Math.random() - 0.5)
+                .slice(0, MATCH_KANJI_COUNT);
+
+            setCurrentRoom({
+                id: 'quick-match',
+                hostName: profile.name,
+                level: profile.currentVersion,
+                world: 1,
+                order: 1,
+                kanjiList,
+                createdAt: Date.now(),
+            });
             setConnectionStatus('connected');
         } catch (err) {
-            if (matchTokenRef.current !== token) return; // cancelled — ignore
-            console.error('Random match failed:', err);
-            setQuickError('あいてが みつかりませんでした。もういちど ためしてね');
-            setConnectionStatus('error');
-        } finally {
-            if (matchTokenRef.current === token) {
-                setIsMatching(false);
-                setIsSearching(false);
+            setConnectionStatus('idle');
+            if (err instanceof MatchCancelledError) {
+                // user pressed cancel — no error message
+            } else if (err instanceof NoOpponentError) {
+                setError('あいてが みつかりませんでした。\nふたりで だいたい おなじタイミングに ボタンを おしてね！');
+            } else {
+                console.error('Quick match failed:', err);
+                setError('つながりませんでした。でんぱの いいところで もういちど ためしてね。');
             }
+        } finally {
+            setIsSearching(false);
         }
     };
 
-    const cancelRandomMatch = () => {
-        matchTokenRef.current++;
-        networkManager.disconnect();
-        setIsMatching(false);
+    const handleCancel = () => {
+        networkManager.cancelMatchmaking();
         setIsSearching(false);
         setConnectionStatus('idle');
     };
 
-    // Start battle with a friend (join their room using their playerId)
-    const handleStartBattle = async (friendId: string) => {
-        try {
-            setConnectionStatus('connecting');
-            await networkManager.joinRoom(friendId);
-
-            // Create room object for the battle
-            // Initialize with default kanji list to avoid empty state while waiting for host sync
-            const defaultKanji = getKanjiForStage(1, 1, GameVersion.RED).map(k => k.char);
-            const uniqueKanji = Array.from(new Set(defaultKanji));
-
-            setCurrentRoom({
-                id: friendId,
-                hostName: 'Friend',
-                level: GameVersion.RED,
-                world: 1,
-                order: 1,
-                kanjiList: uniqueKanji,
-                createdAt: Date.now()
-            });
-            setConnectionStatus('connected');
-        } catch (err) {
-            console.error('Failed to connect to friend:', err);
-            setConnectionStatus('error');
-        }
+    const saveName = () => {
+        const next = nameDraft.trim();
+        if (next) setProfile({ name: next });
+        else setNameDraft(profile.name);
+        setIsEditingName(false);
     };
 
-    const renderTabContent = () => {
-        switch (activeTab) {
-            case 'quick':
-                return (
-                    <div className="space-y-6">
-                        {/* Rank card — the ladder to climb */}
-                        {(() => {
-                            const rank = getRank(playerStats.rating);
-                            return (
-                                <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 flex items-center gap-4">
-                                    <div className="text-4xl">{rank.tier.icon}</div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className={`font-black text-lg ${rank.tier.color}`}>{rank.tier.name}</span>
-                                            <span className="text-xs text-gray-400 font-mono">レート {playerStats.rating}</span>
-                                        </div>
-                                        {rank.next ? (
-                                            <>
-                                                <div className="mt-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all duration-700"
-                                                        style={{ width: `${rank.progress * 100}%` }}
-                                                    />
-                                                </div>
-                                                <div className="text-[11px] text-gray-400 mt-0.5">
-                                                    {rank.next.icon} {rank.next.name}まで あと <span className="text-white font-bold">{rank.pointsToNext}</span> pt
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="text-[11px] text-fuchsia-300 mt-1 font-bold">さいこうランク！</div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })()}
-
-                        {/* Passphrase match — the simplest way to battle a friend */}
-                        <div className="bg-gradient-to-br from-cyan-900/40 to-blue-900/30 border border-cyan-500/40 rounded-2xl p-5">
-                            <h2 className="text-xl font-black text-white mb-1">🔑 あいことばで対戦</h2>
-                            <p className="text-sm text-cyan-200/80 mb-4">
-                                ふたりで <span className="font-bold text-white">おなじ あいことば</span> を入れて「たたかう！」を押すだけ。
-                            </p>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={matchWord}
-                                    onChange={e => setMatchWord(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && !isMatching && handleQuickMatch(matchWord)}
-                                    placeholder="れい：ねこパンチ99"
-                                    maxLength={24}
-                                    className="flex-1 min-w-0 px-4 py-3 bg-gray-900 text-white text-lg rounded-xl border-2 border-cyan-700 focus:border-cyan-400 focus:outline-none placeholder-gray-600"
-                                />
-                                <button
-                                    onClick={() => handleQuickMatch(matchWord)}
-                                    disabled={isMatching}
-                                    className={`px-5 py-3 rounded-xl font-black text-white whitespace-nowrap transition-all ${isMatching ? 'bg-gray-600' : 'bg-cyan-500 hover:bg-cyan-400 active:scale-95 shadow-[0_0_16px_rgba(34,211,238,0.4)]'}`}
-                                >
-                                    {isMatching ? 'せつぞく中…' : 'たたかう！'}
-                                </button>
-                            </div>
-                            <p className="text-[11px] text-gray-500 mt-2">
-                                ※ かぶらないように、すこし めずらしい ことばに してね
-                            </p>
-                        </div>
-
-                        {/* Random match with anyone waiting */}
-                        <div className="flex items-center gap-3">
-                            <div className="h-px flex-1 bg-gray-700" />
-                            <span className="text-xs text-gray-500">または</span>
-                            <div className="h-px flex-1 bg-gray-700" />
-                        </div>
-                        {isSearching ? (
-                            <div className="w-full py-5 rounded-2xl bg-gray-800 border border-purple-500/40 flex flex-col items-center gap-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
-                                    <span className="text-white font-bold">あいてを さがしています…</span>
-                                </div>
-                                <span className="text-xs text-gray-400">はやく来た人から じゅんばんに マッチするよ</span>
-                                <button
-                                    onClick={cancelRandomMatch}
-                                    className="px-6 py-2 bg-red-900/50 hover:bg-red-800/60 border border-red-500 rounded-full text-red-200 text-sm font-bold"
-                                >
-                                    やめる
-                                </button>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={handleRandomMatch}
-                                disabled={isMatching}
-                                className={`w-full py-4 rounded-2xl font-black text-white text-lg border transition-all ${isMatching ? 'bg-gray-700 border-gray-600' : 'bg-gradient-to-r from-purple-600 to-fuchsia-600 border-purple-400/40 hover:brightness-110 active:scale-[0.98]'}`}
-                            >
-                                🌍 だれかとすぐ対戦（ランダムマッチ）
-                            </button>
-                        )}
-
-                        {quickError && (
-                            <div className="bg-red-900/50 border border-red-500 rounded-lg p-3 text-red-200 text-sm text-center">
-                                {quickError}
-                            </div>
-                        )}
-
-                        <div className="text-xs text-gray-500 leading-relaxed">
-                            出題される漢字は、さきにマッチした側（ホスト）のバージョンからランダムに{QUICK_MATCH_KANJI_COUNT}問。
-                            こまかく選びたいときは「ルーム作成」タブへ。
-                        </div>
-                    </div>
-                );
-            case 'friends':
-                return <FriendList onStartBattle={handleStartBattle} />;
-            case 'create':
-                return <RoomCreation />;
-            case 'join':
-                return <RoomBrowser />;
-            case 'stats':
-                return (
-                    <div className="space-y-6">
-                        <h2 className="text-2xl font-bold text-white">対戦成績</h2>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Rating + Rank */}
-                            <div className="bg-gradient-to-br from-yellow-600 to-yellow-800 rounded-lg p-6">
-                                <div className="text-sm text-yellow-200 mb-1">レーティング</div>
-                                <div className="text-4xl font-black text-white">
-                                    {playerStats.rating}
-                                </div>
-                                {(() => {
-                                    const rank = getRank(playerStats.rating);
-                                    return (
-                                        <div className="mt-1 text-sm font-black text-white/90">
-                                            {rank.tier.icon} {rank.tier.name}
-                                            {rank.next && <span className="text-xs text-yellow-200/80 ml-1">（あと{rank.pointsToNext}ptで{rank.next.name}）</span>}
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-
-                            {/* Points */}
-                            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg p-6">
-                                <div className="text-sm text-blue-200 mb-1">獲得ポイント</div>
-                                <div className="text-4xl font-black text-white">
-                                    {playerStats.points}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Win/Loss Record */}
-                        <div className="bg-gray-800 rounded-lg p-6">
-                            <h3 className="text-lg font-bold text-white mb-4">対戦記録</h3>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-green-400">
-                                        {playerStats.wins}
-                                    </div>
-                                    <div className="text-sm text-gray-400 mt-1">勝利</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-red-400">
-                                        {playerStats.losses}
-                                    </div>
-                                    <div className="text-sm text-gray-400 mt-1">敗北</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-gray-400">
-                                        {playerStats.draws}
-                                    </div>
-                                    <div className="text-sm text-gray-400 mt-1">引き分け</div>
-                                </div>
-                            </div>
-
-                            {/* Win Rate */}
-                            {(playerStats.wins + playerStats.losses) > 0 && (
-                                <div className="mt-6 pt-6 border-t border-gray-700">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-gray-400">勝率</span>
-                                        <span className="text-2xl font-bold text-white">
-                                            {(
-                                                (playerStats.wins / (playerStats.wins + playerStats.losses)) * 100
-                                            ).toFixed(1)}%
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Rating Info */}
-                        <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
-                            <h4 className="text-sm font-medium text-blue-400 mb-2">
-                                レーティングについて
-                            </h4>
-                            <ul className="text-sm text-gray-400 space-y-1">
-                                <li>• 初期レーティング: 1000</li>
-                                <li>• 勝利すると上昇、敗北すると下降</li>
-                                <li>• 格上との対戦は大きく変動</li>
-                                <li>• ポイントは減ることがありません</li>
-                            </ul>
-                        </div>
-
-
-                    </div>
-                );
-        }
-    };
+    const rank = getRank(playerStats.rating);
+    const totalGames = playerStats.wins + playerStats.losses;
 
     return (
-        <div className="h-full bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 p-4 pb-32 overflow-y-auto">
-            <div className="max-w-4xl mx-auto">
+        <div className="h-full bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 overflow-y-auto">
+            <div className="max-w-md mx-auto p-4 pb-28 flex flex-col gap-4">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-black text-white">
-                        オンライン対戦
-                    </h1>
+                <div className="flex items-center justify-between">
                     <button
-                        onClick={handleBackToMenu}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+                        onClick={onBack}
+                        className="min-h-[44px] px-4 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors"
                     >
-                        戻る
+                        ← もどる
                     </button>
+                    <h1 className="text-xl font-black text-white">オンライン対戦</h1>
+                    <div className="w-[76px]" />
                 </div>
 
-                {/* Tabs */}
-                <div className="flex flex-wrap gap-2 mb-6">
-                    {([
-                        { id: 'quick', label: '⚡ クイック', active: 'bg-cyan-600' },
-                        { id: 'friends', label: '👥 フレンド', active: 'bg-teal-600' },
-                        { id: 'create', label: 'ルーム作成', active: 'bg-green-600' },
-                        { id: 'join', label: 'IDで参加', active: 'bg-blue-600' },
-                        { id: 'stats', label: '📊 成績', active: 'bg-purple-600' },
-                    ] as const).map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 min-w-[72px] px-3 py-2.5 rounded-lg font-bold text-sm md:text-base transition-all ${activeTab === tab.id
-                                ? `${tab.active} text-white scale-105`
-                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                }`}
+                {/* Rank card */}
+                <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 flex items-center gap-4">
+                    <div className="text-4xl">{rank.tier.icon}</div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                            <span className={`font-black text-lg ${rank.tier.color}`}>{rank.tier.name}</span>
+                            <span className="text-xs text-gray-400 font-mono">レート {playerStats.rating}</span>
+                        </div>
+                        {rank.next ? (
+                            <>
+                                <div className="mt-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all duration-700"
+                                        style={{ width: `${rank.progress * 100}%` }}
+                                    />
+                                </div>
+                                <div className="text-[11px] text-gray-400 mt-0.5">
+                                    {rank.next.icon} {rank.next.name}まで あと{' '}
+                                    <span className="text-white font-bold">{rank.pointsToNext}</span> pt
+                                </div>
+                            </>
+                        ) : (
+                            <div className="text-[11px] text-fuchsia-300 mt-1 font-bold">さいこうランク！</div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Name (the opponent sees this) */}
+                <div className="bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-3">
+                    <span className="text-xs text-gray-400 shrink-0">なまえ</span>
+                    {isEditingName ? (
+                        <>
+                            <input
+                                autoFocus
+                                value={nameDraft}
+                                onChange={(e) => setNameDraft(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                                maxLength={12}
+                                className="flex-1 min-w-0 bg-gray-900 text-white rounded-lg px-3 py-1.5 border border-cyan-500 focus:outline-none"
+                            />
+                            <button
+                                onClick={saveName}
+                                className="min-h-[40px] px-4 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold"
+                            >
+                                OK
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <span className="flex-1 min-w-0 truncate font-bold text-white">{profile.name}</span>
+                            <button
+                                onClick={() => {
+                                    setNameDraft(profile.name);
+                                    setIsEditingName(true);
+                                }}
+                                className="min-h-[40px] px-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold"
+                            >
+                                ✏️ かえる
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {/* The one and only action */}
+                <AnimatePresence mode="wait">
+                    {isSearching ? (
+                        <motion.div
+                            key="searching"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0 }}
+                            className="bg-gray-800 border-2 border-cyan-500/50 rounded-2xl p-6 flex flex-col items-center gap-4"
                         >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Tab Content */}
-                <div className="bg-gray-900/50 rounded-xl p-6">
-                    {renderTabContent()}
-                </div>
-
-                {/* Info Banner */}
-                <div className="mt-6 bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/30 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                        <span className="text-2xl">⚔️</span>
-                        <div>
-                            <h3 className="text-sm font-bold text-purple-300 mb-1">
-                                リアルタイム漢字バトル
-                            </h3>
-                            <p className="text-xs text-gray-400">
-                                インターネットごしに、はやく・正しく漢字を書いたほうが勝ち！
-                                いちばんかんたんなのは「⚡ クイック」の あいことば対戦です。
+                            <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                            <div className="text-center">
+                                <div className="text-white font-black text-lg">あいてを さがしています…</div>
+                                <div className="text-sm text-cyan-300 mt-1">
+                                    まっている人: <span className="font-black">{Math.max(waitingCount, 1)}</span>にん
+                                </div>
+                                <div className="text-[11px] text-gray-500 mt-1 font-mono">{elapsed}びょう</div>
+                            </div>
+                            <p className="text-[11px] text-gray-400 text-center leading-relaxed">
+                                あいても おなじ「{profile.currentVersion}」のソフトで<br />
+                                このボタンを おすと マッチするよ
                             </p>
+                            <button
+                                onClick={handleCancel}
+                                className="min-h-[44px] px-8 rounded-full bg-red-900/60 hover:bg-red-800/70 border border-red-500 text-red-100 text-sm font-bold transition-colors"
+                            >
+                                やめる
+                            </button>
+                        </motion.div>
+                    ) : (
+                        <motion.button
+                            key="battle"
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={handleBattle}
+                            className="w-full py-8 rounded-3xl font-black text-white text-2xl bg-gradient-to-br from-cyan-500 via-blue-600 to-fuchsia-600 border-2 border-cyan-300/40 shadow-[0_0_30px_rgba(34,211,238,0.35)] active:brightness-110 transition-all"
+                        >
+                            <div className="text-4xl mb-1">⚔️</div>
+                            たたかう！
+                            <div className="text-xs font-bold text-white/80 mt-1">
+                                ボタンを おすだけ・あいことば いらず
+                            </div>
+                        </motion.button>
+                    )}
+                </AnimatePresence>
+
+                {error && (
+                    <div className="bg-red-900/40 border border-red-500/60 rounded-xl p-3 text-red-100 text-sm text-center whitespace-pre-line">
+                        {error}
+                    </div>
+                )}
+
+                {/* How it works — two lines, no jargon */}
+                {!isSearching && (
+                    <div className="bg-black/30 border border-white/10 rounded-xl p-3 text-[11px] text-gray-400 leading-relaxed">
+                        ① ふたりとも このがめんで「たたかう！」をおす<br />
+                        ② あいてが みつかったら すぐ バトルスタート！<br />
+                        <span className="text-gray-500">
+                            ※ おなじソフト（{profile.currentVersion}）どうしで マッチします
+                        </span>
+                    </div>
+                )}
+
+                {/* Record */}
+                <div className="bg-gray-800/60 rounded-2xl p-4 border border-gray-700">
+                    <h3 className="text-sm font-bold text-gray-300 mb-3">せんせき</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                        <div className="text-center">
+                            <div className="text-2xl font-black text-green-400">{playerStats.wins}</div>
+                            <div className="text-[11px] text-gray-400 mt-0.5">かち</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-black text-red-400">{playerStats.losses}</div>
+                            <div className="text-[11px] text-gray-400 mt-0.5">まけ</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-black text-gray-400">{playerStats.draws}</div>
+                            <div className="text-[11px] text-gray-400 mt-0.5">ひきわけ</div>
                         </div>
                     </div>
+                    {totalGames > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-700 flex items-center justify-between">
+                            <span className="text-xs text-gray-400">しょうりつ</span>
+                            <span className="text-lg font-black text-white">
+                                {((playerStats.wins / totalGames) * 100).toFixed(0)}%
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
