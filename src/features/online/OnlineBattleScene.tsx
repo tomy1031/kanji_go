@@ -5,7 +5,8 @@ import { networkManager } from './NetworkManager';
 import { useUserStore } from '../../store/userStore';
 import { useSound } from '../../hooks/useSound';
 import { getAssetPath } from '../../utils/assetUtils';
-import { KANJI_DB } from '../../lib/kanjiUtils';
+import { KANJI_DB, getAllKanji } from '../../lib/kanjiUtils';
+import { GameVersion } from '../../types';
 import { KanjiInfoDisplay } from '../../components/KanjiInfoDisplay';
 import { KanjiListModal } from '../../components/KanjiListModal';
 import KanjiWriterCanvas from '../../components/KanjiWriterCanvas';
@@ -23,6 +24,23 @@ interface OnlineBattleSceneProps {
 // Module-scope clock helper: handleNetworkEvent only runs from network
 // callbacks (never during render), so reading the clock there is safe.
 const nowMs = () => Date.now();
+
+// Difficulty order, easiest first. Matching is version-agnostic, so a pair on
+// different versions plays the easier one's kanji.
+const VERSION_ORDER: GameVersion[] = [GameVersion.RED, GameVersion.BLUE, GameVersion.GREEN];
+
+const easierVersion = (a: GameVersion, b?: GameVersion): GameVersion => {
+    if (!b || !VERSION_ORDER.includes(b)) return a;
+    return VERSION_ORDER.indexOf(a) <= VERSION_ORDER.indexOf(b) ? a : b;
+};
+
+const MATCH_KANJI_COUNT = 20;
+
+const buildKanjiList = (version: GameVersion, fallback?: string[]): string[] => {
+    const pool = [...new Set(getAllKanji().filter((k) => k.level === version).map((k) => k.char))];
+    if (pool.length === 0) return fallback && fallback.length > 0 ? fallback : [];
+    return pool.sort(() => Math.random() - 0.5).slice(0, MATCH_KANJI_COUNT);
+};
 
 const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
     // Stores
@@ -202,6 +220,7 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                         rating: onlinePlayerStats.rating,
                         monsterId: partners.currentMonsterId,
                         name: profile.name,
+                        version: profile.currentVersion,
                         id: myPlayerId
                     },
                     timestamp: Date.now()
@@ -277,7 +296,14 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
 
                 // If Host receiving READY, reply with own READY including kanjiList
                 if (networkManager.isHosting()) {
-                    console.log("OnlineBattleScene: Host received READY, replying with kanjiList...");
+                    // Players on different versions can now be matched, so the
+                    // host picks the EASIER of the two so nobody is asked for
+                    // kanji they have never seen.
+                    const sharedVersion = easierVersion(profile.currentVersion, event.payload?.version);
+                    const kanjiList = buildKanjiList(sharedVersion, currentRoom?.kanjiList);
+                    if (currentRoom) {
+                        useOnlineStore.getState().setCurrentRoom({ ...currentRoom, kanjiList });
+                    }
                     const responseEvent: BattleEvent = {
                         type: BattleEventType.READY,
                         payload: {
@@ -285,7 +311,8 @@ const OnlineBattleScene: React.FC<OnlineBattleSceneProps> = ({ onLeave }) => {
                             rating: onlinePlayerStats.rating,
                             monsterId: partners.currentMonsterId,
                             name: profile.name,
-                            kanjiList: currentRoom?.kanjiList || [] // Send kanji list to Guest
+                            version: sharedVersion,
+                            kanjiList
                         },
                         timestamp: nowMs()
                     };

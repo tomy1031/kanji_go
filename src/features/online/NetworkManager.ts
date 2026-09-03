@@ -6,7 +6,15 @@ import { BattleEventType } from './types';
 type EventCallback = (event: BattleEvent) => void;
 
 /** Waiters older than this are treated as ghosts (closed tab, dead network). */
-const STALE_WAITER_MS = 3 * 60 * 1000;
+const STALE_WAITER_MS = 30 * 60 * 1000;
+
+/**
+ * One lobby for everyone, regardless of which version (N5/N4/N3) each player
+ * is on: splitting the lobby per version made it far too likely that nobody
+ * was waiting in yours. The question set is reconciled in the handshake
+ * instead (the host builds it from the easier of the two versions).
+ */
+const LOBBY_TOPIC = 'kanjigo-lobby-all';
 /**
  * How long the paired players stay visible in the lobby after deciding on each
  * other. Leaving instantly created a race where the faster peer vanished
@@ -163,15 +171,17 @@ class NetworkManager {
      * @param onWaiting reports how many players are currently waiting (incl. you)
      */
     public async joinQuickMatch(
-        version: string,
         opts?: { timeoutMs?: number; onWaiting?: (count: number) => void }
     ): Promise<void> {
         this.cancelMatchmaking();
         const token = this.matchToken;
-        const timeoutMs = opts?.timeoutMs ?? 60000;
+        // 0 = wait until the player cancels. Requiring both players to press
+        // within the same short window was the main reason matches never
+        // happened; now the first one can simply keep waiting.
+        const timeoutMs = opts?.timeoutMs ?? 0;
 
         const myKey = `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-        const lobby = supabase.channel(`kanjigo-lobby-${version}`, {
+        const lobby = supabase.channel(LOBBY_TOPIC, {
             config: { presence: { key: myKey } },
         });
         this.lobbyChannel = lobby;
@@ -181,10 +191,12 @@ class NetworkManager {
             const finish = (fn: () => void) => {
                 if (settled) return;
                 settled = true;
-                clearTimeout(timer);
+                if (timer) clearTimeout(timer);
                 fn();
             };
-            const timer = setTimeout(() => finish(() => reject(new NoOpponentError())), timeoutMs);
+            const timer = timeoutMs > 0
+                ? setTimeout(() => finish(() => reject(new NoOpponentError())), timeoutMs)
+                : undefined;
 
             const check = () => {
                 if (settled) return;

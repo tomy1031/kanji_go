@@ -10,7 +10,6 @@ import { getRank } from './rankUtils';
 // players are matched inside the same version's lobby, so the pool always
 // agrees and nobody has to choose anything.
 const MATCH_KANJI_COUNT = 20;
-const SEARCH_TIMEOUT_MS = 60000;
 
 interface OnlineLobbyProps {
     onBack: () => void;
@@ -53,9 +52,10 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
         setConnectionStatus('connecting');
 
         try {
-            await networkManager.joinQuickMatch(profile.currentVersion, {
-                timeoutMs: SEARCH_TIMEOUT_MS,
-                onWaiting: (count) => setWaitingCount(count),
+            // No timeout: whoever taps first simply keeps waiting until the
+            // other player arrives (or they cancel).
+            await networkManager.joinQuickMatch({
+                onWaiting: (count: number) => setWaitingCount(count),
             });
 
             // My question set (used when I turn out to be the host; the host's
@@ -82,7 +82,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
             if (err instanceof MatchCancelledError) {
                 // user pressed cancel — no error message
             } else if (err instanceof NoOpponentError) {
-                setError('あいてが みつかりませんでした。\nふたりで だいたい おなじタイミングに ボタンを おしてね！');
+                setError('あいてが みつかりませんでした。もういちど ためしてね。');
             } else {
                 console.error('Quick match failed:', err);
                 setError('つながりませんでした。でんぱの いいところで もういちど ためしてね。');
@@ -205,8 +205,8 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                                 <div className="text-[11px] text-gray-500 mt-1 font-mono">{elapsed}びょう</div>
                             </div>
                             <p className="text-[11px] text-gray-400 text-center leading-relaxed">
-                                あいても おなじ「{profile.currentVersion}」のソフトで<br />
-                                このボタンを おすと マッチするよ
+                                あいてが このボタンを おしたら すぐ はじまるよ。<br />
+                                この まま まっていて だいじょうぶ！
                             </p>
                             <button
                                 onClick={handleCancel}
@@ -246,7 +246,8 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                         ① ふたりとも このがめんで「たたかう！」をおす<br />
                         ② あいてが みつかったら すぐ バトルスタート！<br />
                         <span className="text-gray-500">
-                            ※ おなじソフト（{profile.currentVersion}）どうしで マッチします
+                            ※ さきに おした人は そのまま まっていればOK。
+                            ちがうソフト（N5/N4/N3）の人とも たたかえます
                         </span>
                     </div>
                 )}

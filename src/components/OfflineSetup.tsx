@@ -30,14 +30,16 @@ const OfflineSetup: React.FC = () => {
     const [cached, setCached] = useState(0);
     const [busy, setBusy] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [failedCount, setFailedCount] = useState(0);
     const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
     const [showIosSheet, setShowIosSheet] = useState(false);
     const stopRef = useRef(false);
 
     const refresh = useCallback(async () => {
         const urls = allAssets();
+        const done = await countCached(urls);
         setTotal(urls.length);
-        setCached(await countCached(urls));
+        setCached(done);
     }, []);
 
     useEffect(() => {
@@ -59,19 +61,28 @@ const OfflineSetup: React.FC = () => {
     const download = async () => {
         setBusy(true);
         setProgress(0);
+        setFailedCount(0);
         stopRef.current = false;
-        const urls = allAssets();
-        await warmAssets(
-            urls,
-            (done, t) => setProgress(Math.floor((done / t) * 100)),
-            () => stopRef.current
-        );
+
         // Ask the browser to keep this data (ignored on iOS, honoured elsewhere)
         try {
             await navigator.storage?.persist?.();
         } catch {
             // best-effort only
         }
+
+        const urls = allAssets();
+        // Two passes: the second retries only what the first could not store,
+        // which is what makes a flaky mobile connection eventually finish.
+        let result = await warmAssets(
+            urls,
+            (done, t) => setProgress(Math.floor((done / t) * 100)),
+            () => stopRef.current
+        );
+        if (result.failed.length > 0 && !stopRef.current) {
+            result = await warmAssets(result.failed, undefined, () => stopRef.current);
+        }
+        setFailedCount(result.failed.length);
         await refresh();
         setBusy(false);
     };
@@ -110,10 +121,20 @@ const OfflineSetup: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-[11px] text-gray-400 mt-1">
                     <span>
-                        {busy ? 'ダウンロード中…' : ready ? 'ぜんぶ ダウンロードずみ！' : 'まだ ぜんぶ ダウンロードしていません'}
+                        {busy
+                            ? 'ダウンロード中…'
+                            : ready
+                                ? 'ぜんぶ ダウンロードずみ！'
+                                : `のこり ${total - cached}こ`}
                     </span>
-                    <span className="font-mono">{busy ? progress : pct}%</span>
+                    <span className="font-mono">{cached}/{total}</span>
                 </div>
+                {!busy && failedCount > 0 && (
+                    <p className="text-[11px] text-yellow-300 mt-1">
+                        {failedCount}こ ダウンロードできませんでした。
+                        でんぱの いいところで もういちど おしてね。
+                    </p>
+                )}
             </div>
 
             {!ready && (
@@ -125,7 +146,11 @@ const OfflineSetup: React.FC = () => {
                         : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:brightness-110 active:scale-[0.98]'
                         }`}
                 >
-                    {busy ? 'ダウンロード中…' : '⬇️ ぜんぶ ダウンロード（Wi-Fi すいしょう）'}
+                    {busy
+                        ? `ダウンロード中… ${progress}%`
+                        : cached > 0
+                            ? '⬇️ つづきを ダウンロード'
+                            : '⬇️ ぜんぶ ダウンロード（Wi-Fi すいしょう）'}
                 </button>
             )}
 
