@@ -6,10 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1a1a2e" />
     <meta name="description" content="Learn Japanese Kanji through Pokemon-style battles!" />
-    <link rel="apple-touch-icon" href="/kanji_go/icon-192x192.png" />
+    <!-- iOS home-screen app: without these the shortcut opens in Safari chrome
+         (not standalone) and iOS labels the icon from <title> -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/kanji_go/apple-touch-icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="かんじGO！" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Kanji Go</title>
-    <script type="module" crossorigin src="/kanji_go/assets/index-D7lnfsEo.js"></script>
-    <link rel="stylesheet" crossorigin href="/kanji_go/assets/index-CQV0V7cK.css">
+    <script type="module" crossorigin src="/kanji_go/assets/index-CSFngd9q.js"></script>
+    <link rel="stylesheet" crossorigin href="/kanji_go/assets/index-BFGravqt.css">
   <link rel="manifest" href="/kanji_go/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/kanji_go/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
