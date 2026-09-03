@@ -106,8 +106,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
   const [showDefeatModal, setShowDefeatModal] = useState(false);
   const [expGained, setExpGained] = useState(0);
   const [isNewSkin, setIsNewSkin] = useState(false);
-  // Width- and height-aware so the canvas never pushes the HUD off small phones
-  const canvasSize = useCanvasSize(280, 0.36);
+  // Width- and height-aware so the canvas never pushes the HUD off small
+  // phones; the extra width margin reserves room for the hint button column.
+  const canvasSize = useCanvasSize(280, 0.36, 104);
 
   // --- Dopamine systems state ---
   const [perfectFlash, setPerfectFlash] = useState(false);
@@ -1047,10 +1048,12 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
           kanjiList={stageKanjiList}
         />
 
-        {/* Kanji Canvas - Fixed height container */}
-        <div className="flex justify-center pb-3">
+        {/* Kanji Canvas - Fixed height container.
+            The hint button lives OUTSIDE the canvas box: the box clips its
+            overflow, which hid the button entirely on small phones (SE-sized). */}
+        <div className="flex justify-center items-start gap-2 pb-3">
           <div
-            className="relative rounded-xl overflow-hidden"
+            className="relative rounded-xl overflow-hidden shrink-0"
             style={{
               width: canvasSize,
               height: canvasSize,
@@ -1079,26 +1082,28 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                 quizMode={true}
               />
             )}
-            {/* Stroke-order hint: a struggling child always has a way forward.
-                Costs the current combo so it stays a choice, not a freebie. */}
-            {battleState === "battle" && currentKanji && (
-              <button
-                onClick={() => {
-                  canvasHandleRef.current?.animateStroke();
-                  setCombo(0);
-                  setBattleMessage("書きじゅんを おぼえよう！");
-                }}
-                className="absolute -top-3 -right-2 z-20 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 text-[11px] font-black px-2.5 py-1 rounded-full border-2 border-yellow-600 shadow-lg active:scale-95 transition-transform"
-              >
-                👀 ヒント
-              </button>
-            )}
             {battleState === "win" && (
               <div className="flex flex-col items-center justify-center w-full h-full bg-green-900/50 text-green-400">
                 <span className="text-5xl">🏆</span>
               </div>
             )}
           </div>
+
+          {/* Stroke-order hint: a struggling child always has a way forward.
+              Costs the current combo so it stays a choice, not a freebie. */}
+          {battleState === "battle" && currentKanji && (
+            <button
+              onClick={() => {
+                canvasHandleRef.current?.animateStroke();
+                setCombo(0);
+                setBattleMessage("書きじゅんを おぼえよう！");
+              }}
+              className="shrink-0 flex flex-col items-center justify-center gap-0.5 w-14 min-h-[56px] bg-yellow-400 hover:bg-yellow-300 text-yellow-950 rounded-2xl border-2 border-yellow-600 shadow-lg active:scale-95 transition-transform"
+            >
+              <span className="text-xl leading-none">👀</span>
+              <span className="text-[10px] font-black leading-none">ヒント</span>
+            </button>
+          )}
         </div>
       </div>
 

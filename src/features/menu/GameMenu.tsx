@@ -5,6 +5,7 @@ import { MONSTER_DB } from '../../lib/evolutionUtils';
 import { GameVersion } from '../../types';
 import { getAssetPath } from '../../utils/assetUtils';
 import { useSound } from '../../hooks/useSound';
+import OfflineSetup from '../../components/OfflineSetup';
 
 interface GameMenuProps {
     onQuest: () => void;
@@ -106,6 +107,16 @@ const GameMenu: React.FC<GameMenuProps> = ({ onQuest, onPractice, onStatus, onOn
                         </div>
                     </motion.button>
                 ))}
+
+                {/* Offline preparation + home-screen install */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 }}
+                    className="mt-2"
+                >
+                    <OfflineSetup />
+                </motion.div>
 
                 <motion.button
                     initial={{ opacity: 0 }}
