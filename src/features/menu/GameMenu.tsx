@@ -5,7 +5,9 @@ import { MONSTER_DB } from '../../lib/evolutionUtils';
 import { GameVersion } from '../../types';
 import { getAssetPath } from '../../utils/assetUtils';
 import { useSound } from '../../hooks/useSound';
+import { SHINY_FILTER } from '../../lib/constants';
 import OfflineSetup from '../../components/OfflineSetup';
+import Stage from '../../components/ui/Stage';
 
 interface GameMenuProps {
     onQuest: () => void;
@@ -15,120 +17,132 @@ interface GameMenuProps {
     onBack: () => void;
 }
 
+const VERSION_META: Record<GameVersion, { label: string; art: string; tint: string }> = {
+    [GameVersion.RED]: { label: 'N5', art: '/backgrounds/title_red.png', tint: 'var(--color-ver-red)' },
+    [GameVersion.BLUE]: { label: 'N4', art: '/backgrounds/title_blue.png', tint: 'var(--color-ver-blue)' },
+    [GameVersion.GREEN]: { label: 'N3', art: '/backgrounds/title_green.png', tint: 'var(--color-ver-green)' },
+};
+
+const fadeUp = {
+    hidden: { opacity: 0, y: 14 },
+    show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: 0.06 * i, duration: 0.38, ease: [0.22, 1, 0.36, 1] as const } }),
+};
+
 const GameMenu: React.FC<GameMenuProps> = ({ onQuest, onPractice, onStatus, onOnline, onBack }) => {
-    const { profile, partners, dailyStreak, clutchWins } = useUserStore();
-    const { playBgm } = useSound();
+    const { profile, partners, stats, dailyStreak, clutchWins, maxUnlockedStage } = useUserStore();
+    const { playBgm, playSfx } = useSound();
 
-    // Collection completion — the visible "gap" invites completion
-    const totalMonsters = Object.keys(MONSTER_DB).length;
-    const ownedMonsters = partners.unlockedSkins.length;
-    const shinyCount = (partners.shinySkins || []).length;
-    const collectionPct = totalMonsters > 0 ? Math.floor((ownedMonsters / totalMonsters) * 100) : 0;
-    const streakCount = dailyStreak?.count || 0;
-
-    // Play title BGM when entering main menu
     useEffect(() => {
         playBgm('title');
     }, [playBgm]);
-    const getBgImage = () => {
-        switch (profile.currentVersion) {
-            case GameVersion.RED: return getAssetPath('/backgrounds/title_red.png');
-            case GameVersion.GREEN: return getAssetPath('/backgrounds/title_green.png');
-            case GameVersion.BLUE: return getAssetPath('/backgrounds/title_blue.png');
-            default: return getAssetPath('/backgrounds/main_menu.png');
-        }
+
+    const meta = VERSION_META[profile.currentVersion] ?? VERSION_META[GameVersion.RED];
+    const partner = MONSTER_DB[partners.currentMonsterId];
+    const isShiny = (partners.shinySkins || []).includes(partners.currentMonsterId);
+    const totalMonsters = Object.keys(MONSTER_DB).length;
+    const owned = partners.unlockedSkins.length;
+    const collectionPct = totalMonsters ? Math.floor((owned / totalMonsters) * 100) : 0;
+    const streak = dailyStreak?.count || 0;
+
+    const go = (fn: () => void) => () => {
+        playSfx('select');
+        fn();
     };
 
-    const menuItems = [
-        { label: 'クエスト', sub: 'QUEST', desc: 'マップを進んでボスに挑もう', icon: '⚔️', action: onQuest, gradient: 'from-red-600 to-orange-600', border: 'border-red-400/40' },
-        { label: '練習', sub: 'PRACTICE', desc: '漢字を書いてモンスターをゲット', icon: '✍️', action: onPractice, gradient: 'from-blue-600 to-cyan-600', border: 'border-cyan-400/40' },
-        { label: 'オンライン対戦', sub: 'ONLINE BATTLE', desc: 'フレンドとリアルタイム勝負', icon: '🌐', action: onOnline, gradient: 'from-purple-600 to-fuchsia-600', border: 'border-purple-400/40' },
-        { label: 'パートナー', sub: 'PARTNER', desc: 'ステータスとモンスター図鑑', icon: '🐉', action: onStatus, gradient: 'from-emerald-600 to-green-600', border: 'border-emerald-400/40' },
-    ];
+    const items = [
+        { key: 'practice', title: 'れんしゅう', sub: '漢字を書いて なかまをゲット', icon: '✍️', tone: 'player', action: onPractice },
+        { key: 'online', title: 'オンラインたいせん', sub: 'ボタンひとつで だれかと しょうぶ', icon: '🌐', tone: 'magic', action: onOnline },
+        { key: 'partner', title: 'パートナー', sub: 'ステータスと モンスターずかん', icon: '🐉', tone: 'success', action: onStatus },
+    ] as const;
+
+    const toneRing: Record<string, string> = {
+        player: 'rgba(56,214,255,0.55)',
+        magic: 'rgba(185,140,255,0.55)',
+        success: 'rgba(94,226,154,0.55)',
+    };
 
     return (
-        <div className="w-full h-dvh bg-gray-900 flex items-center justify-center relative overflow-y-auto">
-            <div
-                className="absolute inset-0 bg-cover bg-center opacity-30 blur-sm"
-                style={{ backgroundImage: `url(${getBgImage()})` }}
-            />
-            {/* Vignette for readability */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60" />
-
-            <div className="z-10 w-full max-w-md flex flex-col gap-3 md:gap-4 p-4 md:p-8">
-                <h2 className="text-2xl md:text-4xl font-black text-white text-center mb-2 md:mb-3 tracking-[0.3em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-                    メニュー
-                </h2>
-
-                {/* Player status strip: streak / collection / clutch */}
-                <div className="flex justify-center gap-2 mb-3 md:mb-4 flex-wrap">
-                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${streakCount > 0 ? 'bg-orange-500/20 border-orange-400/50 text-orange-300' : 'bg-black/30 border-white/10 text-gray-400'}`}>
-                        🔥 れんぞく {streakCount}日
-                        {(dailyStreak?.freezes || 0) > 0 && <span className="text-cyan-300 ml-1">🧊x{dailyStreak!.freezes}</span>}
-                    </div>
-                    <div className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 border border-purple-400/50 text-purple-200">
-                        📖 ずかん {collectionPct}%
-                        <span className="text-purple-300/70">({ownedMonsters}/{totalMonsters})</span>
-                        {shinyCount > 0 && <span className="text-fuchsia-300 ml-1">✨x{shinyCount}</span>}
-                    </div>
-                    {(clutchWins || 0) > 0 && (
-                        <div className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 border border-red-400/50 text-red-300">
-                            ⚡ クラッチ {clutchWins}
+        <Stage art={getAssetPath(meta.art)} blur>
+            <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar">
+                <div className="max-w-md mx-auto px-4 pt-5 pb-8 flex flex-col gap-3">
+                    {/* Identity row */}
+                    <motion.div custom={0} variants={fadeUp} initial="hidden" animate="show" className="g-panel px-3 py-3 flex items-center gap-3">
+                        <button onClick={go(onStatus)} className="relative w-14 h-14 rounded-2xl overflow-hidden border border-white/20 bg-black/40 shrink-0 active:scale-95 transition-transform">
+                            <img
+                                src={getAssetPath(`/monsters/${partners.currentMonsterId}.png`)}
+                                alt={partner?.name || 'partner'}
+                                className="w-full h-full object-contain"
+                                style={{ filter: isShiny ? SHINY_FILTER : undefined }}
+                            />
+                            {isShiny && <span className="absolute -top-0.5 -right-0.5 text-[10px]">✨</span>}
+                        </button>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="g-title text-base truncate">{profile.name}</span>
+                                <span className="g-chip g-chip-gold !h-6 !px-2 !text-[11px]">Lv.{stats.playerLevel}</span>
+                            </div>
+                            <div className="text-xs text-[color:var(--color-ink-2)] truncate mt-0.5">
+                                {partner?.name || 'パートナー'} と ぼうけんちゅう
+                            </div>
                         </div>
-                    )}
-                </div>
+                        <span className="g-chip !h-7" style={{ borderColor: meta.tint, color: meta.tint }}>{meta.label}</span>
+                    </motion.div>
 
-                {menuItems.map((item, index) => (
+                    {/* Stats strip */}
+                    <motion.div custom={1} variants={fadeUp} initial="hidden" animate="show" className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+                        <span className={`g-chip ${streak > 0 ? 'g-chip-gold' : ''}`}>🔥 れんぞく {streak}日{(dailyStreak?.freezes || 0) > 0 && <span className="opacity-80">🧊{dailyStreak!.freezes}</span>}</span>
+                        <span className="g-chip g-chip-magic">📖 ずかん {collectionPct}%</span>
+                        {(clutchWins || 0) > 0 && <span className="g-chip g-chip-enemy">⚡ クラッチ {clutchWins}</span>}
+                    </motion.div>
+
+                    {/* Hero: Quest */}
                     <motion.button
-                        key={item.label}
-                        initial={{ x: -50, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: index * 0.08 }}
-                        whileHover={{ scale: 1.03, x: 6 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={item.action}
-                        className={`w-full p-4 md:p-5 rounded-2xl shadow-lg text-left relative overflow-hidden group bg-gradient-to-r ${item.gradient} border ${item.border}`}
+                        custom={2} variants={fadeUp} initial="hidden" animate="show"
+                        whileTap={{ scale: 0.98 }}
+                        onClick={go(onQuest)}
+                        className="relative text-left rounded-[var(--radius-card)] overflow-hidden border border-[rgba(255,224,138,0.55)] shadow-[var(--shadow-glow-gold)] min-h-[128px] g-shimmer"
+                        style={{ background: 'linear-gradient(135deg, rgba(255,207,74,0.22) 0%, rgba(255,140,26,0.18) 60%, rgba(11,16,32,0.4) 100%)' }}
                     >
-                        <div className="absolute inset-0 bg-black/25 group-hover:bg-black/10 transition-colors" />
-                        {/* Subtle top shine */}
-                        <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/10 pointer-events-none" />
-                        <div className="relative z-10 flex items-center gap-4">
-                            <div className="w-12 h-12 md:w-14 md:h-14 shrink-0 rounded-xl bg-black/30 border border-white/20 flex items-center justify-center text-2xl md:text-3xl shadow-inner">
-                                {item.icon}
+                        <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 120% at 100% 0%, rgba(255,255,255,0.14), transparent 55%)' }} />
+                        <div className="relative p-4 flex items-center gap-4">
+                            <div className="g-tile !w-16 !h-16 !text-3xl" style={{ background: 'rgba(58,38,0,0.45)', borderColor: 'rgba(255,224,138,0.5)' }}>⚔️</div>
+                            <div className="min-w-0 flex-1">
+                                <div className="g-eyebrow !text-[color:var(--color-gold)]">QUEST</div>
+                                <div className="g-title text-2xl md:text-3xl text-white drop-shadow">ぼうけんに でる</div>
+                                <div className="text-xs text-white/80 mt-1">ステージ {maxUnlockedStage} まで あそべるよ</div>
                             </div>
-                            <div className="min-w-0">
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-lg md:text-2xl font-black text-white drop-shadow">{item.label}</span>
-                                    <span className="text-[9px] md:text-[10px] font-bold text-white/50 tracking-widest">{item.sub}</span>
-                                </div>
-                                <div className="text-xs md:text-sm text-white/85">{item.desc}</div>
-                            </div>
-                            <div className="ml-auto text-white/60 text-xl">›</div>
+                            <div className="text-white/70 text-2xl">›</div>
                         </div>
                     </motion.button>
-                ))}
 
-                {/* Offline preparation + home-screen install */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45 }}
-                    className="mt-2"
-                >
-                    <OfflineSetup />
-                </motion.div>
+                    {/* Secondary actions */}
+                    {items.map((item, i) => (
+                        <motion.button
+                            key={item.key}
+                            custom={3 + i} variants={fadeUp} initial="hidden" animate="show"
+                            whileTap={{ scale: 0.98 }}
+                            onClick={go(item.action)}
+                            className="g-panel text-left px-3 py-3 flex items-center gap-3 active:bg-[color:var(--color-surface-2)] transition-colors"
+                        >
+                            <div className="g-tile" style={{ boxShadow: `inset 0 0 0 1px ${toneRing[item.tone]}, inset 0 1px 0 rgba(255,255,255,0.1)` }}>{item.icon}</div>
+                            <div className="min-w-0 flex-1">
+                                <div className="g-title text-lg">{item.title}</div>
+                                <div className="text-xs text-[color:var(--color-ink-2)] truncate">{item.sub}</div>
+                            </div>
+                            <div className="text-white/50 text-xl">›</div>
+                        </motion.button>
+                    ))}
 
-                <motion.button
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    onClick={onBack}
-                    className="mt-6 text-gray-400 hover:text-white transition-colors text-center text-sm"
-                >
-                    ← タイトルへもどる
-                </motion.button>
+                    <motion.div custom={6} variants={fadeUp} initial="hidden" animate="show" className="mt-1">
+                        <OfflineSetup />
+                    </motion.div>
+
+                    <motion.button custom={7} variants={fadeUp} initial="hidden" animate="show" onClick={go(onBack)} className="g-btn g-btn-ghost self-center mt-1 !min-h-[40px] text-sm">
+                        ‹ タイトルへ
+                    </motion.button>
+                </div>
             </div>
-        </div>
+        </Stage>
     );
 };
 

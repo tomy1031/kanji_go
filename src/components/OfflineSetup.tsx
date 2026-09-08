@@ -102,9 +102,9 @@ const OfflineSetup: React.FC = () => {
     const installed = isStandalone();
 
     return (
-        <div className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+        <div className="w-full g-panel p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                <h3 className="g-title text-sm flex items-center gap-2">
                     📥 オフラインで あそぶ じゅんび
                 </h3>
                 {ready && <span className="text-[11px] font-bold text-green-400">✓ かんりょう</span>}
@@ -112,7 +112,7 @@ const OfflineSetup: React.FC = () => {
 
             {/* Download progress */}
             <div>
-                <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
+                <div className="g-meter">
                     <motion.div
                         className={`h-full ${ready ? 'bg-green-500' : 'bg-gradient-to-r from-cyan-400 to-blue-500'}`}
                         animate={{ width: `${busy ? progress : pct}%` }}
@@ -141,10 +141,8 @@ const OfflineSetup: React.FC = () => {
                 <button
                     onClick={download}
                     disabled={busy}
-                    className={`w-full min-h-[44px] rounded-xl font-black text-white transition-all ${busy
-                        ? 'bg-gray-600'
-                        : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:brightness-110 active:scale-[0.98]'
-                        }`}
+                    className="g-btn g-btn-player w-full"
+
                 >
                     {busy
                         ? `ダウンロード中… ${progress}%`
@@ -163,7 +161,7 @@ const OfflineSetup: React.FC = () => {
                 <>
                     <button
                         onClick={install}
-                        className="w-full min-h-[44px] rounded-xl font-black text-white bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:brightness-110 active:scale-[0.98] transition-all"
+                        className="g-btn w-full"
                     >
                         📱 ホームがめんに ついかする
                     </button>

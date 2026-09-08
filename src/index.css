@@ -1,12 +1,228 @@
 @import "tailwindcss";
 
-/* Battle UI Animations */
+/* =============================================================================
+   KANJI GO — design system
+   One visual language for every screen: a deep navy stage, layered translucent
+   surfaces, a single gold accent for primary actions and rewards, cyan for the
+   player and coral for the enemy. Rounded Japanese type for a friendly,
+   commercial kids'-game feel.
+   ============================================================================ */
+
+@theme {
+  /* Type */
+  --font-display: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-body: "M PLUS Rounded 1c", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+
+  /* Stage + surfaces (dark, layered) */
+  --color-stage: #0b1020;
+  --color-stage-2: #111a33;
+  --color-surface: rgba(255, 255, 255, 0.06);
+  --color-surface-2: rgba(255, 255, 255, 0.10);
+  --color-surface-3: rgba(255, 255, 255, 0.16);
+  --color-line: rgba(255, 255, 255, 0.12);
+  --color-line-strong: rgba(255, 255, 255, 0.22);
+
+  /* Text */
+  --color-ink: #f4f6fb;
+  --color-ink-2: rgba(244, 246, 251, 0.72);
+  --color-ink-3: rgba(244, 246, 251, 0.48);
+
+  /* Accents */
+  --color-gold: #ffcf4a;
+  --color-gold-2: #ffb31a;
+  --color-gold-ink: #3a2600;
+  --color-player: #38d6ff;
+  --color-player-2: #1d9bff;
+  --color-enemy: #ff5a6e;
+  --color-enemy-2: #d9263f;
+  --color-success: #5ee29a;
+  --color-danger: #ff6b6b;
+  --color-magic: #b98cff;
+
+  /* Version tints (used sparingly, as rails/rings) */
+  --color-ver-red: #ff6b57;
+  --color-ver-blue: #4aa8ff;
+  --color-ver-green: #5ad07a;
+
+  /* Shape */
+  --radius-card: 20px;
+  --radius-tile: 14px;
+  --radius-pill: 999px;
+
+  /* Elevation */
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-float: 0 18px 50px rgba(0, 0, 0, 0.55);
+  --shadow-glow-gold: 0 0 0 1px rgba(255, 207, 74, 0.45), 0 10px 30px rgba(255, 179, 26, 0.35);
+  --shadow-glow-player: 0 0 0 1px rgba(56, 214, 255, 0.45), 0 10px 28px rgba(29, 155, 255, 0.35);
+}
+
+/* ---------- base ---------------------------------------------------------- */
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-stage);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button { font-family: inherit; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* ---------- reusable surfaces ---------------------------------------------- */
+@layer components {
+  /* Full-screen stage: background art, darkened + softly lit from the top */
+  .g-stage {
+    position: relative;
+    isolation: isolate;
+    background-color: var(--color-stage);
+  }
+  .g-stage-art {
+    position: absolute; inset: 0; z-index: -2;
+    background-size: cover; background-position: center;
+    filter: saturate(1.05);
+  }
+  .g-stage-veil {
+    position: absolute; inset: 0; z-index: -1;
+    background:
+      radial-gradient(120% 70% at 50% 0%, rgba(255,255,255,0.10), transparent 60%),
+      linear-gradient(180deg, rgba(11,16,32,0.55) 0%, rgba(11,16,32,0.75) 55%, rgba(11,16,32,0.95) 100%);
+  }
+
+  /* Glass panel */
+  .g-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .g-panel-solid {
+    background: linear-gradient(180deg, #16213f 0%, #0f1730 100%);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-float);
+  }
+
+  /* Small label above things: letterspaced, muted */
+  .g-eyebrow {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.18em;
+    color: var(--color-ink-3); text-transform: uppercase;
+  }
+  .g-title {
+    font-family: var(--font-display);
+    font-weight: 900; letter-spacing: -0.01em; line-height: 1.05;
+  }
+
+  /* Buttons */
+  .g-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 48px; padding: 0 20px;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-display); font-weight: 800; font-size: 15px;
+    color: var(--color-ink);
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line-strong);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+    transition: transform 120ms ease, filter 120ms ease, background 120ms ease;
+    user-select: none;
+  }
+  .g-btn:active { transform: scale(0.97); }
+  .g-btn:disabled { opacity: 0.5; pointer-events: none; }
+  .g-btn-primary {
+    color: var(--color-gold-ink);
+    background: linear-gradient(180deg, #ffe08a 0%, var(--color-gold) 45%, var(--color-gold-2) 100%);
+    border-color: rgba(255, 224, 138, 0.9);
+    box-shadow: var(--shadow-glow-gold), inset 0 1px 0 rgba(255,255,255,0.6);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+  }
+  .g-btn-primary:hover { filter: brightness(1.05); }
+  .g-btn-player {
+    color: #04212e;
+    background: linear-gradient(180deg, #8ae8ff 0%, var(--color-player) 45%, var(--color-player-2) 100%);
+    border-color: rgba(138, 232, 255, 0.9);
+    box-shadow: var(--shadow-glow-player), inset 0 1px 0 rgba(255,255,255,0.55);
+  }
+  .g-btn-ghost {
+    background: rgba(0,0,0,0.35);
+    border-color: var(--color-line);
+    color: var(--color-ink-2);
+  }
+  .g-btn-danger {
+    background: linear-gradient(180deg, #ff8a95 0%, var(--color-enemy) 50%, var(--color-enemy-2) 100%);
+    border-color: rgba(255, 138, 149, 0.8);
+    color: #fff;
+    box-shadow: 0 10px 28px rgba(217, 38, 63, 0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+
+  /* Chip / badge */
+  .g-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 10px;
+    border-radius: var(--radius-pill);
+    font-size: 12px; font-weight: 800;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    color: var(--color-ink-2);
+    white-space: nowrap;
+  }
+  .g-chip-gold { background: rgba(255,207,74,0.14); border-color: rgba(255,207,74,0.45); color: var(--color-gold); }
+  .g-chip-player { background: rgba(56,214,255,0.14); border-color: rgba(56,214,255,0.45); color: var(--color-player); }
+  .g-chip-enemy { background: rgba(255,90,110,0.14); border-color: rgba(255,90,110,0.45); color: var(--color-enemy); }
+  .g-chip-magic { background: rgba(185,140,255,0.14); border-color: rgba(185,140,255,0.45); color: var(--color-magic); }
+  .g-chip-success { background: rgba(94,226,154,0.14); border-color: rgba(94,226,154,0.45); color: var(--color-success); }
+
+  /* Meter (HP / progress) */
+  .g-meter { height: 10px; border-radius: 999px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.10); overflow: hidden; }
+  .g-meter > div { height: 100%; border-radius: 999px; position: relative; }
+  .g-meter > div::after {
+    content: ""; position: absolute; inset: 0 0 50% 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+  }
+
+  /* Icon tile used inside cards */
+  .g-tile {
+    display: flex; align-items: center; justify-content: center;
+    width: 52px; height: 52px; border-radius: var(--radius-tile);
+    background: rgba(0,0,0,0.35); border: 1px solid var(--color-line-strong);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+    font-size: 26px;
+  }
+
+  /* Ambient sparkle dots for stages */
+  .g-sparkles::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 22%, rgba(255,255,255,0.55), transparent 60%),
+      radial-gradient(1px 1px at 78% 14%, rgba(255,255,255,0.45), transparent 60%),
+      radial-gradient(1.5px 1.5px at 62% 68%, rgba(255,255,255,0.35), transparent 60%),
+      radial-gradient(1px 1px at 30% 82%, rgba(255,255,255,0.40), transparent 60%),
+      radial-gradient(1.5px 1.5px at 90% 52%, rgba(255,255,255,0.30), transparent 60%);
+  }
+}
+
+/* ---------- motion --------------------------------------------------------- */
 @keyframes fighterIdle {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
 }
-
 @keyframes hpCritical {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
+}
+@keyframes g-shimmer {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+.g-shimmer { position: relative; overflow: hidden; }
+.g-shimmer::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent);
+  animation: g-shimmer 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .g-shimmer::after { animation: none; }
 }

@@ -170,7 +170,7 @@ function App() {
             <button
               onClick={handleBattleEnd}
               aria-label="バトルをやめる"
-              className="absolute top-2 right-2 z-50 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-bold text-white/80 border border-white/20 hover:bg-black/80 hover:text-white active:scale-95 transition-all"
+              className="g-btn g-btn-ghost absolute top-2 right-2 z-50 !min-h-[40px] !px-4 text-xs"
             >
               ✕ にげる
             </button>
