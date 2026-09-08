@@ -5,6 +5,9 @@ import { networkManager, MatchCancelledError, NoOpponentError } from './NetworkM
 import { useUserStore } from '../../store/userStore';
 import { getAllKanji } from '../../lib/kanjiUtils';
 import { getRank } from './rankUtils';
+import Stage from '../../components/ui/Stage';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import { getAssetPath } from '../../utils/assetUtils';
 
 // One question set per match: a shuffled slice of the version's kanji. Both
 // players are matched inside the same version's lobby, so the pool always
@@ -109,22 +112,13 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
     const totalGames = playerStats.wins + playerStats.losses;
 
     return (
-        <div className="h-full bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 overflow-y-auto">
-            <div className="max-w-md mx-auto p-4 pb-28 flex flex-col gap-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <button
-                        onClick={onBack}
-                        className="min-h-[44px] px-4 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold text-sm transition-colors"
-                    >
-                        ← もどる
-                    </button>
-                    <h1 className="text-xl font-black text-white">オンライン対戦</h1>
-                    <div className="w-[76px]" />
-                </div>
+        <Stage art={getAssetPath('/backgrounds/main_menu.png')} blur>
+            <ScreenHeader eyebrow="ONLINE" title="オンラインたいせん" onBack={onBack} />
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+            <div className="max-w-md mx-auto px-4 pb-28 flex flex-col gap-3">
 
                 {/* Rank card */}
-                <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-4 flex items-center gap-4">
+                <div className="g-panel p-4 flex items-center gap-4">
                     <div className="text-4xl">{rank.tier.icon}</div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-2">
@@ -133,9 +127,9 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                         </div>
                         {rank.next ? (
                             <>
-                                <div className="mt-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                                <div className="mt-1 g-meter !h-2">
                                     <div
-                                        className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all duration-700"
+                                        className="transition-all duration-700" 
                                         style={{ width: `${rank.progress * 100}%` }}
                                     />
                                 </div>
@@ -151,7 +145,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                 </div>
 
                 {/* Name (the opponent sees this) */}
-                <div className="bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-2.5 flex items-center gap-3">
+                <div className="g-panel !rounded-[14px] px-4 py-2.5 flex items-center gap-3">
                     <span className="text-xs text-gray-400 shrink-0">なまえ</span>
                     {isEditingName ? (
                         <>
@@ -165,7 +159,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                             />
                             <button
                                 onClick={saveName}
-                                className="min-h-[40px] px-4 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold"
+                                className="g-btn g-btn-player !min-h-[40px] !px-4 text-sm"
                             >
                                 OK
                             </button>
@@ -178,7 +172,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                                     setNameDraft(profile.name);
                                     setIsEditingName(true);
                                 }}
-                                className="min-h-[40px] px-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold"
+                                className="g-btn g-btn-ghost !min-h-[40px] !px-3 text-xs"
                             >
                                 ✏️ かえる
                             </button>
@@ -194,9 +188,9 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
-                            className="bg-gray-800 border-2 border-cyan-500/50 rounded-2xl p-6 flex flex-col items-center gap-4"
+                            className="g-panel-solid p-6 flex flex-col items-center gap-4" style={{ boxShadow: "var(--shadow-glow-player), var(--shadow-float)" }}
                         >
-                            <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                            <div className="w-12 h-12 border-4 border-[color:var(--color-player)] border-t-transparent rounded-full animate-spin" />
                             <div className="text-center">
                                 <div className="text-white font-black text-lg">あいてを さがしています…</div>
                                 <div className="text-sm text-cyan-300 mt-1">
@@ -210,7 +204,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                             </p>
                             <button
                                 onClick={handleCancel}
-                                className="min-h-[44px] px-8 rounded-full bg-red-900/60 hover:bg-red-800/70 border border-red-500 text-red-100 text-sm font-bold transition-colors"
+                                className="g-btn g-btn-danger !px-8 text-sm"
                             >
                                 やめる
                             </button>
@@ -223,11 +217,11 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                             exit={{ opacity: 0 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={handleBattle}
-                            className="w-full py-8 rounded-3xl font-black text-white text-2xl bg-gradient-to-br from-cyan-500 via-blue-600 to-fuchsia-600 border-2 border-cyan-300/40 shadow-[0_0_30px_rgba(34,211,238,0.35)] active:brightness-110 transition-all"
+                            className="g-btn g-btn-primary w-full !min-h-[128px] !rounded-[var(--radius-card)] !flex-col !gap-0 text-2xl g-shimmer"
                         >
                             <div className="text-4xl mb-1">⚔️</div>
                             たたかう！
-                            <div className="text-xs font-bold text-white/80 mt-1">
+                            <div className="text-xs font-bold opacity-75 mt-1">
                                 ボタンを おすだけ・あいことば いらず
                             </div>
                         </motion.button>
@@ -235,14 +229,14 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                 </AnimatePresence>
 
                 {error && (
-                    <div className="bg-red-900/40 border border-red-500/60 rounded-xl p-3 text-red-100 text-sm text-center whitespace-pre-line">
+                    <div className="g-panel !rounded-[14px] p-3 text-sm text-center whitespace-pre-line" style={{ borderColor: "rgba(255,90,110,0.5)" }}>
                         {error}
                     </div>
                 )}
 
                 {/* How it works — two lines, no jargon */}
                 {!isSearching && (
-                    <div className="bg-black/30 border border-white/10 rounded-xl p-3 text-[11px] text-gray-400 leading-relaxed">
+                    <div className="g-panel !rounded-[14px] p-3 text-[11px] text-[color:var(--color-ink-2)] leading-relaxed">
                         ① ふたりとも このがめんで「たたかう！」をおす<br />
                         ② あいてが みつかったら すぐ バトルスタート！<br />
                         <span className="text-gray-500">
@@ -253,8 +247,8 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                 )}
 
                 {/* Record */}
-                <div className="bg-gray-800/60 rounded-2xl p-4 border border-gray-700">
-                    <h3 className="text-sm font-bold text-gray-300 mb-3">せんせき</h3>
+                <div className="g-panel p-4">
+                    <h3 className="g-eyebrow mb-3">せんせき</h3>
                     <div className="grid grid-cols-3 gap-2">
                         <div className="text-center">
                             <div className="text-2xl font-black text-green-400">{playerStats.wins}</div>
@@ -279,7 +273,8 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                     )}
                 </div>
             </div>
-        </div>
+            </div>
+        </Stage>
     );
 };
 

@@ -7,6 +7,9 @@ import { useSound } from '../../hooks/useSound';
 import { getEnemyForStage, getMetaMonsterForStage } from '../../lib/enemyUtils';
 import { getAssetPath } from '../../utils/assetUtils';
 import PartnerSelectModal from '../../components/PartnerSelectModal';
+import Stage from '../../components/ui/Stage';
+import ScreenHeader from '../../components/ui/ScreenHeader';
+import { SHINY_FILTER } from '../../lib/constants';
 
 interface WorldMapProps {
     onLevelSelect: (levelId: string) => void;
@@ -67,29 +70,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
     const chapters = Array.from(new Set(stages.map(s => s.chapter))).sort((a, b) => a - b);
 
     return (
-        <div className="w-full h-dvh bg-[#2c1810] relative overflow-hidden flex flex-col">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-20 bg-[url('/kanji_go/textures/wood-pattern.png')]" />
-
-            {/* Header */}
-            <div className="relative z-20 bg-[#4a2c1d] p-4 shadow-lg border-b-4 border-[#8b5a2b] flex items-center justify-between">
-                {selectedChapter ? (
-                    <button onClick={handleBackToChapters} className="text-[#e6d5b8] font-bold text-sm md:text-base flex items-center gap-1">
-                        <span>◀</span> もどる
-                    </button>
-                ) : (
-                    <button onClick={onBack} className="text-[#e6d5b8] font-bold text-sm md:text-base flex items-center gap-1">
-                        <span>◀</span> もどる
-                    </button>
-                )}
-                <h1 className="text-[#e6d5b8] font-bold text-lg md:text-2xl tracking-widest drop-shadow-md">
-                    {selectedChapter ? `だい${selectedChapter}しょう` : 'ぼうけんマップ'}
-                </h1>
-                <div className="w-16" />
-            </div>
+        <Stage art={getAssetPath(`/backgrounds/bg_${profile.currentVersion.toLowerCase()}.png`)} blur>
+            <ScreenHeader
+                eyebrow={selectedChapter ? 'CHAPTER' : 'QUEST'}
+                title={selectedChapter ? `だい${selectedChapter}しょう` : 'ぼうけんマップ'}
+                onBack={selectedChapter ? handleBackToChapters : onBack}
+            />
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 relative z-10">
+            <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-6 md:px-8 relative z-10">
                 <AnimatePresence mode="wait">
                     {!selectedChapter ? (
                         // Chapter Select View
@@ -110,34 +99,23 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                     <button
                                         key={chapter}
                                         onClick={() => (isLocked ? showLockedToast() : handleChapterSelect(chapter))}
-                                        className={`
-                                            w-full p-6 rounded-xl border-4 shadow-lg relative overflow-hidden transition-transform active:scale-95
-                                            ${isLocked
-                                                ? 'bg-gray-700 border-gray-600 grayscale opacity-70'
-                                                : 'bg-gradient-to-br from-[#8b5a2b] to-[#5c3a1e] border-[#e6d5b8] hover:brightness-110'}
-                                        `}
+                                        className={`g-panel w-full text-left px-4 py-4 flex items-center gap-4 transition-transform active:scale-[0.98] ${isLocked ? 'opacity-60 grayscale' : ''}`}
                                     >
-                                        <div className="flex justify-between items-center relative z-10">
-                                            <div className="text-left">
-                                                <div className="text-[#e6d5b8]/70 text-sm font-bold mb-1">だい◯しょう</div>
-                                                <div className="text-3xl md:text-4xl font-black text-[#e6d5b8] drop-shadow-md">
-                                                    {chapter}
-                                                </div>
+                                        <div className="g-tile !w-16 !h-16 flex-col !gap-0" style={{ borderColor: isLocked ? undefined : 'rgba(255,207,74,0.5)' }}>
+                                            <span className="g-eyebrow !text-[9px] !tracking-[0.1em]">CH.</span>
+                                            <span className="g-title text-2xl leading-none" style={{ color: isLocked ? undefined : 'var(--color-gold)' }}>{chapter}</span>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="g-title text-lg">だい{chapter}しょう</div>
+                                            <div className="mt-1.5 g-meter !h-2">
+                                                <div style={{ width: `${(clearedCount / chapterStages.length) * 100}%`, background: 'linear-gradient(90deg, #ffb31a, #ffe08a)' }} />
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-[#e6d5b8] font-bold text-sm mb-1">
-                                                    クリア {clearedCount}/{chapterStages.length}
-                                                </div>
-                                                <div className="flex items-center gap-1 text-yellow-400 font-mono text-xs">
-                                                    ⭐{totalStars}/⭐{chapterStages.length * 3}
-                                                </div>
+                                            <div className="mt-1 flex items-center gap-3 text-[11px] text-[color:var(--color-ink-2)]">
+                                                <span>クリア {clearedCount}/{chapterStages.length}</span>
+                                                <span className="text-[color:var(--color-gold)]">★ {totalStars}/{chapterStages.length * 3}</span>
                                             </div>
                                         </div>
-                                        {isLocked && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
-                                                <span className="text-gray-300 font-bold text-lg">🔒 まだ あけられない</span>
-                                            </div>
-                                        )}
+                                        <div className="text-white/50 text-xl">{isLocked ? '🔒' : '›'}</div>
                                     </button>
                                 );
                             })}
@@ -181,16 +159,12 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                         <button
                                             key={`${stage.world}-${stage.order}`}
                                             onClick={() => handleStageClick(stage)}
-                                            className={`
-                                                w-full min-h-40 md:min-h-48 rounded-xl border-4 shadow-xl relative overflow-hidden flex flex-col p-6 transition-transform active:scale-95
-                                                ${isLocked
-                                                    ? 'bg-gray-800 border-gray-700 opacity-60'
-                                                    : 'bg-gradient-to-br from-[#5c3a1e] via-[#8b5a2b] to-[#5c3a1e] border-[#d4af37] hover:brightness-110'}
-                                            `}
+                                            className={`w-full min-h-40 md:min-h-48 rounded-[var(--radius-card)] relative overflow-hidden flex flex-col p-5 transition-transform active:scale-[0.98] border ${isLocked ? 'g-panel opacity-60 grayscale' : 'border-[rgba(255,90,110,0.55)] shadow-[0_0_0_1px_rgba(255,90,110,0.35),0_16px_40px_rgba(217,38,63,0.35)]'}`}
+                                            style={isLocked ? undefined : { background: 'linear-gradient(135deg, rgba(217,38,63,0.35) 0%, rgba(58,10,20,0.85) 60%, rgba(11,16,32,0.9) 100%)' }}
                                         >
                                             {/* BOSS Badge with Stars */}
                                             <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
-                                                <div className="bg-[#d4af37] text-[#2c1810] px-3 py-1 rounded-full font-black text-xs md:text-sm shadow-lg flex items-center gap-2">
+                                                <div className="g-chip g-chip-enemy !h-8 !px-3 text-xs md:text-sm">
                                                     ⚔️ ボスバトル
                                                     {/* Star Rating inline with BOSS text */}
                                                     {!isLocked && (
@@ -208,9 +182,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                                 </div>
                                                 {/* Cleared Badge - positioned on the right */}
                                                 {stage.status === 'cleared' && (
-                                                    <div className="bg-green-500 text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg">
-                                                        ✓ クリア！
-                                                    </div>
+                                                    <div className="g-chip g-chip-success !h-8">✓ クリア！</div>
                                                 )}
                                             </div>
 
@@ -231,10 +203,10 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
 
                                             {/* Kanji Grid (2 rows for better layout) - center aligned */}
                                             <div className="mt-4 w-full flex flex-col items-center">
-                                                <div className="text-[#d4af37] text-xs font-bold mb-2 text-center">ここで つかう かんじ</div>
+                                                <div className="g-eyebrow mb-2 text-center">ここで つかう かんじ</div>
                                                 <div className="grid grid-cols-5 md:grid-cols-8 gap-2 justify-items-center max-w-xs mx-auto">
                                                     {kanjis.map(k => (
-                                                        <div key={k.id} className={`w-8 h-8 md:w-10 md:h-10 rounded flex items-center justify-center text-sm md:text-base font-bold ${isLocked ? 'bg-gray-700 text-gray-500' : 'bg-[#d4af37] text-[#2c1810] shadow-md'}`}>
+                                                        <div key={k.id} className={`w-8 h-8 md:w-10 md:h-10 rounded flex items-center justify-center text-sm md:text-base font-bold ${isLocked ? 'bg-white/10 text-white/40' : 'bg-white/90 text-[#1a1030] shadow-md'}`}>
                                                             {k.char}
                                                         </div>
                                                     ))}
@@ -249,17 +221,12 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                     <button
                                         key={`${stage.world}-${stage.order}`}
                                         onClick={() => handleStageClick(stage)}
-                                        className={`
-                                            w-full h-24 md:h-28 rounded-lg border-2 shadow-md relative overflow-hidden flex items-center px-4 transition-transform active:scale-95
-                                            ${isLocked
-                                                ? 'bg-gray-800 border-gray-700 opacity-60'
-                                                : 'bg-[#e6d5b8] border-[#8b5a2b] hover:bg-[#f0e6d2]'}
-                                        `}
+                                        className={`g-panel w-full h-24 md:h-28 relative overflow-hidden flex items-center px-4 transition-transform active:scale-[0.98] ${isLocked ? 'opacity-60 grayscale' : ''}`}
                                     >
                                         {/* Left: Stage Info */}
                                         <div className="flex-1 text-left">
                                             <div className="flex items-center gap-2">
-                                                <div className={`font-bold text-lg md:text-xl ${isLocked ? 'text-gray-500' : 'text-[#5c3a1e]'}`}>
+                                                <div className={`g-title text-lg md:text-xl ${isLocked ? 'text-white/40' : 'text-white'}`}>
                                                     {stage.isBoss ? 'ボス' : `ステージ ${stage.chapter}-${stage.displayNumber}`}
                                                 </div>
                                                 {/* Star Rating Display */}
@@ -268,8 +235,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                                         {[1, 2, 3].map(star => {
                                                             const rating = stageRatings[`${profile.currentVersion}-${stage.world}-${stage.order}`] || 0;
                                                             return (
-                                                                <span key={star} className={`text-sm ${star <= rating ? 'text-yellow-400' : 'text-gray-400'}`}>
-                                                                    ⭐
+                                                                <span key={star} className={`text-sm ${star <= rating ? 'text-[color:var(--color-gold)]' : 'text-white/20'}`}>
+                                                                    ★
                                                                 </span>
                                                             );
                                                         })}
@@ -278,7 +245,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                             </div>
                                             <div className="flex gap-1 mt-1 flex-wrap">
                                                 {kanjis.map(k => (
-                                                    <div key={k.id} className={`w-6 h-6 md:w-8 md:h-8 rounded flex items-center justify-center text-xs md:text-sm font-bold ${isLocked ? 'bg-gray-700 text-gray-500' : 'bg-[#8b5a2b] text-[#e6d5b8]'}`}>
+                                                    <div key={k.id} className={`w-6 h-6 md:w-8 md:h-8 rounded flex items-center justify-center text-xs md:text-sm font-bold ${isLocked ? 'bg-white/10 text-white/40' : 'bg-white/90 text-[#1a1030]'}`}>
                                                         {k.char}
                                                     </div>
                                                 ))}
@@ -296,9 +263,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                                                 <div className="w-full h-full bg-gray-400/20 rounded-full" />
                                             )}
                                             {stage.status === 'cleared' && (
-                                                <div className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg transform rotate-12 border border-white shadow-sm">
-                                                    CLEAR
-                                                </div>
+                                                <div className="absolute -top-1 -right-1 g-chip g-chip-success !h-6 !px-2 !text-[10px]">✓</div>
                                             )}
                                         </div>
                                     </button>
@@ -310,22 +275,22 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
             </div>
 
             {/* Footer / Current Partner - Clickable */}
-            <div
-                className="bg-[#2c1810] p-2 border-t border-[#8b5a2b] flex items-center justify-center gap-4 cursor-pointer hover:bg-[#3a2015] transition-colors"
+            <button
+                className="relative z-20 mx-4 mb-4 g-panel-solid px-3 py-2.5 flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
                 onClick={() => {
                     playSfx('select');
                     setShowPartnerModal(true);
                 }}
             >
-                <div className="w-10 h-10 rounded-full bg-gray-800 border border-cyan-500 overflow-hidden">
-                    <img src={getAssetPath(`/monsters/${currentPartner.id}.png`)} alt={currentPartner.name} className="w-full h-full object-cover" />
+                <div className="w-12 h-12 rounded-xl bg-black/40 border border-[rgba(56,214,255,0.5)] overflow-hidden shrink-0">
+                    <img src={getAssetPath(`/monsters/${currentPartner.id}.png`)} alt={currentPartner.name} className="w-full h-full object-contain" style={{ filter: (partners.shinySkins || []).includes(currentPartner.id) ? SHINY_FILTER : undefined }} />
                 </div>
-                <div className="text-[#e6d5b8] text-xs">
-                    <div className="font-bold">{currentPartner.name}</div>
-                    <div>Lv.{stats.playerLevel}</div>
+                <div className="min-w-0 flex-1">
+                    <div className="g-eyebrow">PARTNER</div>
+                    <div className="g-title text-base truncate">{currentPartner.name} <span className="g-chip g-chip-player !h-5 !px-2 !text-[10px] align-middle ml-1">Lv.{stats.playerLevel}</span></div>
                 </div>
-                <div className="text-[#e6d5b8]/50 text-xs">▶ パートナーをかえる</div>
-            </div>
+                <span className="g-chip">かえる ›</span>
+            </button>
 
             {/* Locked-content toast */}
             <AnimatePresence>
@@ -346,7 +311,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ onLevelSelect, onBack }) => {
                 isOpen={showPartnerModal}
                 onClose={() => setShowPartnerModal(false)}
             />
-        </div>
+        </Stage>
     );
 };
 

@@ -12,6 +12,7 @@ import KanjiWriterCanvas, { type KanjiWriterHandle } from '../../components/Kanj
 import ScoreAttack from './ScoreAttack';
 import { useSound } from '../../hooks/useSound';
 import { useCanvasSize } from '../../hooks/useCanvasSize';
+import ScreenHeader from '../../components/ui/ScreenHeader';
 
 interface PracticeModeProps {
     onBack: () => void;
@@ -186,15 +187,12 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                 />
 
                 {/* Header */}
-                <div className="px-3 py-2 md:p-4 flex justify-between items-center bg-gray-800 shadow-md z-10 relative">
-                    <button onClick={() => setPracticeTarget(null)} className="text-gray-400 hover:text-white flex items-center gap-2 text-sm md:text-base">
-                        <span>←</span> もどる
-                    </button>
-                    <h2 className="text-base md:text-xl font-bold tracking-widest">書き取り練習</h2>
-                    <div className="text-xs md:text-sm text-gray-400 font-mono">
-                        {currentIndex + 1} / {filteredKanji.length}
-                    </div>
-                </div>
+                <ScreenHeader
+                    eyebrow="PRACTICE"
+                    title="かきとり れんしゅう"
+                    onBack={() => setPracticeTarget(null)}
+                    right={<span className="g-chip">{currentIndex + 1} / {filteredKanji.length}</span>}
+                />
 
                 {/* Navigation Arrows - side positioned (wide screens only; on
                     phones they would overlap the canvas, so a bottom bar is used) */}
@@ -409,28 +407,22 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
     }
 
     return (
-        <div className="w-full h-dvh bg-gray-900 text-white flex flex-col relative overflow-hidden">
+        <div className="g-stage w-full h-dvh text-white flex flex-col relative overflow-hidden">
             {/* Background */}
             <div
-                className="absolute inset-0 bg-cover bg-center opacity-50"
+                className="g-stage-art"
                 style={{ backgroundImage: `url(${getAssetPath('/backgrounds/practice_dojo.png')})` }}
             />
-            <div className="absolute inset-0 bg-black/40" /> {/* Overlay for readability */}
+            <div className="g-stage-veil" />
 
             {/* Header */}
-            <div className="px-4 py-3 md:p-6 flex justify-between items-center bg-gray-800 shadow-md z-10 relative">
-                <button onClick={onBack} className="text-gray-400 hover:text-white flex items-center gap-2">
-                    <span>←</span> もどる
-                </button>
-                <h2 className="text-lg md:text-xl font-bold tracking-widest">練習モード</h2>
-                <div className="w-16" /> {/* Spacer */}
-            </div>
+            <ScreenHeader eyebrow="PRACTICE" title="れんしゅう" onBack={onBack} />
 
             {/* Controls */}
-            <div className="p-4 bg-gray-800/50 border-b border-gray-700 flex flex-col gap-4 relative z-10">
+            <div className="px-4 pb-3 flex flex-col gap-3 relative z-10">
                 <div className="flex flex-wrap gap-4 items-center justify-between">
                     {/* Tabs */}
-                    <div className="flex gap-2 bg-gray-900 p-1 rounded-lg overflow-x-auto">
+                    <div className="flex gap-1 g-panel !rounded-full p-1 overflow-x-auto no-scrollbar">
                         {([
                             { id: 'NEW+LEARNING', label: '未習得' },
                             { id: 'ALL', label: '全て' },
@@ -440,7 +432,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`px-4 py-2 rounded-md transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-[color:var(--color-gold)] text-[color:var(--color-gold-ink)]' : 'text-[color:var(--color-ink-2)]'}`}
                             >
                                 {tab.label}
                             </button>
@@ -451,7 +443,7 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                     <select
                         value={selectedStage}
                         onChange={(e) => setSelectedStage(e.target.value === 'ALL' ? 'ALL' : e.target.value)}
-                        className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-cyan-500"
+                        className="g-btn g-btn-ghost !min-h-[40px] !px-4 text-sm appearance-none"
                     >
                         <option value="ALL">ぜんぶのステージ</option>
                         {availableStages.map((stage) => (
@@ -467,13 +459,13 @@ const PracticeMode: React.FC<PracticeModeProps> = ({ onBack }) => {
                         placeholder="かんじを さがす…"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 w-full md:w-64 focus:outline-none focus:border-cyan-500"
+                        className="g-panel !rounded-full px-4 py-2 w-full md:w-64 text-sm focus:outline-none"
                     />
 
                     {/* Score Attack entry */}
                     <button
                         onClick={() => setShowScoreAttack(true)}
-                        className="px-4 py-2 rounded-lg font-black text-white bg-gradient-to-r from-fuchsia-600 to-purple-600 border border-fuchsia-400/40 hover:brightness-110 active:scale-95 transition-all whitespace-nowrap"
+                        className="g-btn !min-h-[40px] text-sm whitespace-nowrap" style={{ borderColor: "rgba(185,140,255,0.5)" }}
                     >
                         ⏱️ スコアアタック
                         {((scoreAttackBest || {})[profile.currentVersion] || 0) > 0 && (

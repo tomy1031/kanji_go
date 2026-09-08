@@ -13,6 +13,7 @@ import { KanjiListModal } from '../../components/KanjiListModal';
 import { type KanjiData } from "../../types";
 import { getAssetPath } from "../../utils/assetUtils";
 import { useCanvasSize } from "../../hooks/useCanvasSize";
+import Meter from "../../components/ui/Meter";
 import {
   PERFECT_DAMAGE_MULT,
   LOW_HP_RATIO,
@@ -624,13 +625,13 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
         <div className="absolute inset-0 overflow-hidden">
           {/* Red side (Enemy) */}
           <div
-            className="absolute inset-0 bg-gradient-to-br from-red-900 via-red-800 to-red-950"
-            style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(135deg, rgba(217,38,63,0.45) 0%, rgba(90,14,30,0.55) 45%, rgba(11,16,32,0.92) 100%)', clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
           />
           {/* Blue side (Player) */}
           <div
-            className="absolute inset-0 bg-gradient-to-tl from-blue-900 via-blue-800 to-blue-950"
-            style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(315deg, rgba(29,155,255,0.45) 0%, rgba(10,40,90,0.55) 45%, rgba(11,16,32,0.92) 100%)', clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}
           />
           {/* Radial light rays from center */}
           <div
@@ -714,10 +715,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             <motion.div
               initial={{ scale: 0, y: -20 }}
               animate={{ scale: 1, y: 0 }}
-              className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-orange-600 to-red-600 px-4 py-1 rounded-full border-2 border-yellow-400 z-20"
-              style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.3), 0 0 15px rgba(255,100,0,0.5)' }}
+              className="absolute top-4 left-1/2 transform -translate-x-1/2 g-chip g-chip-gold !h-8 !px-4 z-20 shadow-[var(--shadow-glow-gold)]"
             >
-              <span className="text-white font-black text-sm md:text-base">🔥 {combo} COMBO</span>
+              <span className="g-title text-sm md:text-base">🔥 {combo} <span className="g-eyebrow !text-[10px] !text-[color:var(--color-gold)]">COMBO</span></span>
             </motion.div>
           )}
           {/* Enemy Fighter */}
@@ -728,7 +728,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             style={{ filter: isEnemyHit ? 'brightness(2)' : 'none' }}
           >
             {/* Enemy Name */}
-            <div className="text-red-400 text-[10px] md:text-sm font-black mb-1 flex items-center gap-1">
+            <div className="g-chip g-chip-enemy !h-7 mb-1.5 max-w-full">
               <span>{
                 currentEnemy.element === 'WATER' ? '💧' :
                   currentEnemy.element === 'NATURE' ? '🌿' :
@@ -736,16 +736,15 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                       currentEnemy.element === 'DARK' ? '🌑' :
                         currentEnemy.element === 'BOSS' ? '👿' : '🔥'
               }</span>
-              <span>{currentEnemy.name}</span>
-              <span className="text-xs text-red-300 ml-1">Lv.{effectiveEnemyLevel}</span>
+              <span className="truncate">{currentEnemy.name}</span>
+              <span className="opacity-70 text-[10px]">Lv.{effectiveEnemyLevel}</span>
             </div>
             {/* Enemy Frame */}
             <div
-              className="w-full aspect-square max-w-[100px] md:max-w-[120px] rounded-xl border-3 flex items-center justify-center relative overflow-hidden"
+              className="w-full aspect-square max-w-[104px] md:max-w-[128px] rounded-2xl flex items-center justify-center relative overflow-hidden"
               style={{
-                borderColor: '#ff4444',
-                background: 'linear-gradient(180deg, rgba(100,0,0,0.9) 0%, rgba(50,0,0,0.95) 100%)',
-                boxShadow: '0 0 20px rgba(255,0,0,0.4), inset 0 0 20px rgba(255,0,0,0.2)',
+                background: 'radial-gradient(80% 80% at 50% 30%, rgba(255,90,110,0.28), rgba(11,16,32,0.9) 70%)',
+                boxShadow: '0 0 0 1.5px rgba(255,90,110,0.7), 0 12px 28px rgba(217,38,63,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
               }}
             >
               <img
@@ -795,30 +794,15 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
               </AnimatePresence>
             </div>
             {/* Enemy Stats */}
-            <div className="w-full max-w-[100px] md:max-w-[120px] mt-2">
-              <div className="flex justify-between text-[8px] md:text-xs text-gray-300 mb-0.5">
-                <span>HP</span>
-                <span>{enemyHp}/{maxEnemyHp}</span>
+            <div className="w-full max-w-[104px] md:max-w-[128px] mt-2">
+              <div className="flex justify-between items-baseline mb-1">
+                <span className="g-eyebrow !text-[9px]">HP</span>
+                <span className="text-[11px] md:text-xs font-black tabular-nums">{enemyHp}<span className="text-white/40">/{maxEnemyHp}</span></span>
               </div>
-              <div className="h-2.5 bg-gray-800 rounded border border-gray-600 overflow-hidden shadow-inner">
-                <motion.div
-                  className={`h-full rounded ${(enemyHp / maxEnemyHp) > 0.5
-                    ? 'bg-gradient-to-b from-green-400 to-green-600'
-                    : (enemyHp / maxEnemyHp) > 0.25
-                      ? 'bg-gradient-to-b from-yellow-400 to-orange-500'
-                      : 'bg-gradient-to-b from-red-400 to-red-600'
-                    }`}
-                  style={{
-                    boxShadow: (enemyHp / maxEnemyHp) <= 0.25 ? '0 0 8px #ff0000' : (enemyHp / maxEnemyHp) > 0.5 ? '0 0 8px #00ff00' : '0 0 8px #ffcc00',
-                  }}
-                  initial={{ width: '100%' }}
-                  animate={{ width: `${(enemyHp / maxEnemyHp) * 100}%` }}
-                  transition={{ duration: 0.4 }}
-                />
-              </div>
-              <div className="flex justify-between text-[8px] md:text-xs mt-1">
-                <span className="text-gray-400">ATK</span>
-                <span className="text-orange-400 font-bold">{enemyStats.attack}</span>
+              <Meter value={enemyHp / maxEnemyHp} tone="enemy" critical={enemyHp / maxEnemyHp <= 0.25} className="!h-2.5" />
+              <div className="flex justify-between items-center mt-1.5">
+                <span className="g-eyebrow !text-[9px]">ATK</span>
+                <span className="text-[11px] font-black text-[color:var(--color-enemy)]">{enemyStats.attack}</span>
               </div>
             </div>
           </motion.div>
@@ -826,13 +810,10 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
           {/* VS */}
           <div className="flex items-center justify-center">
             <motion.span
-              className="text-2xl md:text-4xl font-black text-white"
-              style={{
-                fontFamily: "'Black Ops One', cursive",
-                textShadow: '0 0 20px #ff6600, 0 0 40px #ff3300, 3px 3px 0 #993300',
-              }}
-              animate={{ scale: [1, 1.08, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="g-title italic text-2xl md:text-4xl text-[color:var(--color-gold)]"
+              style={{ textShadow: '0 2px 0 rgba(0,0,0,0.35), 0 0 22px rgba(255,179,26,0.55)' }}
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
             >
               VS
             </motion.span>
@@ -846,18 +827,16 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             style={{ filter: isPlayerHit ? 'brightness(2)' : 'none' }}
           >
             {/* Player Name */}
-            <div className="text-cyan-400 text-[10px] md:text-sm font-black mb-1 flex items-center gap-1">
-              <span>✨</span>
-              <span>{currentPartner.name}</span>
-              <span className="text-xs text-cyan-300 ml-1">Lv.{stats.playerLevel}</span>
+            <div className="g-chip g-chip-player !h-7 mb-1.5 max-w-full">
+              <span className="truncate">{currentPartner.name}</span>
+              <span className="opacity-70 text-[10px]">Lv.{stats.playerLevel}</span>
             </div>
             {/* Player Frame */}
             <div
-              className="w-full aspect-square max-w-[100px] md:max-w-[120px] rounded-xl border-3 flex items-center justify-center relative overflow-hidden"
+              className="w-full aspect-square max-w-[104px] md:max-w-[128px] rounded-2xl flex items-center justify-center relative overflow-hidden"
               style={{
-                borderColor: '#4488ff',
-                background: 'linear-gradient(180deg, rgba(0,30,100,0.9) 0%, rgba(0,15,60,0.95) 100%)',
-                boxShadow: '0 0 20px rgba(0,100,255,0.4), inset 0 0 20px rgba(0,100,255,0.2)',
+                background: 'radial-gradient(80% 80% at 50% 30%, rgba(56,214,255,0.26), rgba(11,16,32,0.9) 70%)',
+                boxShadow: '0 0 0 1.5px rgba(56,214,255,0.7), 0 12px 28px rgba(29,155,255,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
               }}
             >
               <img
@@ -912,31 +891,16 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
               </AnimatePresence>
             </div>
             {/* Player Stats */}
-            <div className="w-full max-w-[100px] md:max-w-[120px] mt-2">
-              <div className="flex justify-between text-[8px] md:text-xs text-gray-300 mb-0.5">
-                <span>HP</span>
-                <span>{playerHp}/{maxPlayerHp}</span>
+            <div className="w-full max-w-[104px] md:max-w-[128px] mt-2">
+              <div className="flex justify-between items-baseline mb-1">
+                <span className="g-eyebrow !text-[9px]">HP</span>
+                <span className="text-[11px] md:text-xs font-black tabular-nums">{playerHp}<span className="text-white/40">/{maxPlayerHp}</span></span>
               </div>
-              <div className="h-2.5 bg-gray-800 rounded border border-gray-600 overflow-hidden shadow-inner">
-                <motion.div
-                  className={`h-full rounded ${(playerHp / maxPlayerHp) > 0.5
-                    ? 'bg-gradient-to-b from-green-400 to-green-600'
-                    : (playerHp / maxPlayerHp) > 0.25
-                      ? 'bg-gradient-to-b from-yellow-400 to-orange-500'
-                      : 'bg-gradient-to-b from-red-400 to-red-600'
-                    }`}
-                  style={{
-                    boxShadow: (playerHp / maxPlayerHp) <= 0.25 ? '0 0 8px #ff0000' : (playerHp / maxPlayerHp) > 0.5 ? '0 0 8px #00ff00' : '0 0 8px #ffcc00',
-                  }}
-                  initial={{ width: '100%' }}
-                  animate={{ width: `${(playerHp / maxPlayerHp) * 100}%` }}
-                  transition={{ duration: 0.4 }}
-                />
-              </div>
-              <div className="flex justify-between text-[8px] md:text-xs mt-1">
-                <span className="text-gray-400">ATK</span>
-                <span className="text-orange-400 font-bold">
-                  {playerAttack}{combo > 0 ? <span className="text-yellow-400"> +{combo}</span> : ''}
+              <Meter value={playerHp / maxPlayerHp} tone="player" critical={playerHp / maxPlayerHp <= 0.25} className="!h-2.5" />
+              <div className="flex justify-between items-center mt-1.5">
+                <span className="g-eyebrow !text-[9px]">ATK</span>
+                <span className="text-[11px] font-black text-[color:var(--color-player)]">
+                  {playerAttack}{combo > 0 ? <span className="text-[color:var(--color-gold)]"> +{combo}</span> : ''}
                 </span>
               </div>
             </div>
@@ -982,7 +946,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
               key={battleMessage}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-black/60 backdrop-blur-sm text-white text-xs md:text-sm font-bold px-4 py-1.5 rounded-full border border-white/15 whitespace-nowrap overflow-hidden text-ellipsis text-center"
+              className="g-panel !rounded-full !py-1.5 !px-4 text-xs md:text-sm font-bold text-white whitespace-nowrap overflow-hidden text-ellipsis text-center"
             >
               {battleMessage}
             </motion.div>
@@ -1010,30 +974,15 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
         </AnimatePresence>
       </motion.div>
 
-      {/* Paper Texture Divider */}
+      {/* Writing desk */}
       <div
-        className="relative h-3 w-full z-10 flex-shrink-0"
+        className="relative z-20 flex-shrink-0 flex flex-col rounded-t-[26px] pt-3"
         style={{
-          background: 'linear-gradient(180deg, transparent 0%, #d4c4a8 30%)',
+          background: 'linear-gradient(180deg, #172244 0%, #0f1730 100%)',
+          boxShadow: '0 -14px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.14)',
         }}
       >
-        <svg viewBox="0 0 100 10" preserveAspectRatio="none" className="absolute bottom-0 w-full h-full">
-          <path
-            d="M0,10 Q10,5 20,8 T40,6 T60,9 T80,5 T100,8 L100,10 Z"
-            fill="#d4c4a8"
-          />
-        </svg>
-      </div>
-
-      {/* Kanji Writing Section - Paper Texture Background */}
-      <div
-        className="relative z-20 flex-shrink-0 flex flex-col"
-        style={{
-          background: 'linear-gradient(180deg, #d4c4a8 0%, #c4b498 50%, #b4a488 100%)',
-        }}
-      >
-        {/* Small spacer - combo display moved to battle area */}
-        <div className="h-2" />
+        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/20" />
 
         {/* Question / Hint Row */}
         {/* Question / Hint Row */}
@@ -1098,7 +1047,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                 setCombo(0);
                 setBattleMessage("書きじゅんを おぼえよう！");
               }}
-              className="shrink-0 flex flex-col items-center justify-center gap-0.5 w-14 min-h-[56px] bg-yellow-400 hover:bg-yellow-300 text-yellow-950 rounded-2xl border-2 border-yellow-600 shadow-lg active:scale-95 transition-transform"
+              className="g-btn g-btn-primary shrink-0 !flex-col !gap-0.5 !w-14 !min-h-[56px] !px-0 !rounded-2xl"
             >
               <span className="text-xl leading-none">👀</span>
               <span className="text-[10px] font-black leading-none">ヒント</span>
@@ -1131,12 +1080,13 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             className="absolute inset-0 z-50 flex bg-black/80 backdrop-blur-sm overflow-y-auto py-6"
           >
             {/* my-auto keeps the card centered but lets tall content scroll on short screens */}
-            <div className="bg-gray-900 border-2 border-yellow-500 p-6 md:p-8 rounded-2xl max-w-md w-[90%] text-center shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden m-auto">
+            <div className="g-panel-solid p-6 md:p-8 max-w-md w-[90%] text-center relative overflow-hidden m-auto" style={{ boxShadow: "var(--shadow-glow-gold), var(--shadow-float)" }}>
               {/* Animated Background Rays */}
               <div className="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_0_deg,rgba(234,179,8,0.1)_20deg,transparent_40deg)] animate-[spin_4s_linear_infinite]" />
 
-              <h2 className="text-4xl font-black text-yellow-400 mb-4 drop-shadow-md relative z-10">
-                STAGE CLEAR!
+              <div className="g-eyebrow relative z-10 !text-[color:var(--color-gold)] mb-1">STAGE CLEAR</div>
+              <h2 className="g-title text-4xl md:text-5xl text-white mb-4 relative z-10" style={{ textShadow: '0 0 30px rgba(255,207,74,0.45)' }}>
+                クリア！
               </h2>
 
               <div className="mb-6 relative z-10 flex flex-col items-center">
@@ -1231,7 +1181,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
               </div>
 
               {/* Stats Comparison */}
-              <div className="bg-gray-800 rounded-lg p-4 mb-4 relative z-10 text-left">
+              <div className="g-panel !rounded-[14px] p-4 mb-4 relative z-10 text-left">
                 <h3 className="text-gray-400 text-xs font-bold mb-2 uppercase tracking-wider">
                   たたかいの きろく
                 </h3>
@@ -1254,17 +1204,17 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
                 </div>
               </div>
 
-              <div className="bg-gray-800 rounded-lg p-4 mb-6 relative z-10">
+              <div className="g-panel !rounded-[14px] p-4 mb-6 relative z-10">
                 <div className="flex justify-between text-sm text-gray-400 mb-1">
                   <span>EXP</span>
                   <span>+{expGained}</span>
                 </div>
-                <div className="w-full h-4 bg-gray-700 rounded-full overflow-hidden">
+                <div className="g-meter !h-3.5">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: "100%" }}
                     transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="h-full bg-cyan-400"
+                    style={{ background: 'linear-gradient(90deg, #ffb31a, #ffe08a)' }}
                   />
                 </div>
               </div>
@@ -1273,7 +1223,7 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
               {bonusRound < BONUS_ROUND_MAX && playerHp > 0 && (
                 <button
                   onClick={handleBonusRound}
-                  className="w-full mb-2 relative z-10 bg-gradient-to-r from-amber-500 to-orange-600 hover:brightness-110 text-black font-black py-3 rounded-xl transition-all text-sm border border-yellow-300 shadow-[0_0_16px_rgba(245,158,11,0.5)] active:scale-[0.98]"
+                  className="g-btn g-btn-primary w-full mb-2 relative z-10 !text-sm"
                 >
                   ⚡ れんぞくバトル！（敵 Lv+{BONUS_ROUND_LEVEL_STEP}・EXP x{BONUS_ROUND_EXP_MULT} / HPそのまま）
                 </button>
@@ -1282,14 +1232,14 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
               <div className="flex gap-2 relative z-10">
                 <button
                   onClick={handleReturnToMap}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+                  className="g-btn g-btn-ghost flex-1 !text-sm"
                 >
                   もどる
                 </button>
                 {isNewSkin && (
                   <button
                     onClick={handleEquipNewSkin}
-                    className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl transition-colors text-sm"
+                    className="g-btn g-btn-player flex-1 !text-sm"
                   >
                     つれていく
                   </button>
@@ -1306,8 +1256,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             animate={{ opacity: 1, scale: 1 }}
             className="absolute inset-0 z-50 flex bg-black/80 backdrop-blur-sm overflow-y-auto py-6"
           >
-            <div className="bg-gray-900 border-2 border-red-600 p-6 md:p-8 rounded-2xl max-w-md w-[90%] text-center shadow-[0_0_50px_rgba(220,38,38,0.3)] m-auto">
-              <h2 className="text-4xl md:text-5xl font-black text-red-600 mb-4 drop-shadow-md tracking-widest">
+            <div className="g-panel-solid p-6 md:p-8 max-w-md w-[90%] text-center m-auto" style={{ boxShadow: "0 0 0 1px rgba(255,90,110,0.45), var(--shadow-float)" }}>
+              <div className="g-eyebrow !text-[color:var(--color-enemy)] mb-1">DEFEAT</div>
+              <h2 className="g-title text-3xl md:text-4xl text-white mb-4">
                 まけてしまった…
               </h2>
 
@@ -1319,13 +1270,13 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
 
               <button
                 onClick={handleRetry}
-                className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:brightness-110 text-white font-black py-4 rounded-xl transition-all text-lg mb-3 border border-red-400/50 shadow-[0_0_16px_rgba(220,38,38,0.4)] active:scale-[0.98]"
+                className="g-btn g-btn-primary w-full !min-h-[56px] text-lg mb-3"
               >
                 🔥 もういちど！
               </button>
               <button
                 onClick={handleReturnToMap}
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+                className="g-btn g-btn-ghost w-full !text-sm"
               >
                 マップへ もどる
               </button>
@@ -1341,8 +1292,9 @@ const BattleScene: React.FC<BattleSceneProps> = ({ world, order, onComplete }) =
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-50 flex items-center justify-center bg-black/80"
           >
-            <div className="text-4xl font-bold text-yellow-400 animate-pulse text-center">
-              {evolutionMessage}
+            <div className="g-panel-solid px-8 py-6 text-center" style={{ boxShadow: 'var(--shadow-glow-gold), var(--shadow-float)' }}>
+              <div className="g-eyebrow !text-[color:var(--color-gold)] mb-2">EVOLUTION</div>
+              <div className="g-title text-3xl md:text-4xl text-white animate-pulse">{evolutionMessage}</div>
             </div>
           </motion.div>
         )}

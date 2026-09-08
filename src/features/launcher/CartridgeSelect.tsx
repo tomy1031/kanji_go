@@ -100,32 +100,32 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
 
     return (
         <div
-            className="w-full h-dvh bg-[#0f172a] text-white font-sans overflow-hidden flex flex-col relative fixed inset-0"
+            className="g-stage g-sparkles w-full h-dvh overflow-hidden flex flex-col relative fixed inset-0"
             onClick={handleInteraction}
         >
             {/* Tap to Start Overlay */}
             {!hasInteracted && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer">
-                    <div className="text-center animate-pulse">
-                        <div className="text-4xl md:text-6xl mb-4">👆</div>
-                        <div className="text-xl md:text-2xl font-bold text-white tracking-widest">タップして はじめよう！</div>
+                    <div className="text-center">
+                        <div className="text-5xl md:text-6xl mb-5 animate-bounce">👆</div>
+                        <div className="g-btn g-btn-primary !min-h-[56px] !px-10 text-lg pointer-events-none g-shimmer">タップして はじめよう！</div>
                     </div>
                 </div>
             )}
 
             {/* Background Tech Pattern */}
-            <div className="absolute inset-0 opacity-10 bg-[url('/kanji_go/textures/circuit-board.png')] pointer-events-none" />
+            <div className="g-stage-veil" />
 
             {/* Top Bar */}
-            <div className="flex flex-col md:flex-row justify-between items-center p-4 md:p-8 md:px-12 z-10 border-b border-white/10 bg-[#1e293b]/50 backdrop-blur-md gap-4 shrink-0">
+            <div className="flex justify-between items-center px-4 py-3 md:px-10 z-10 border-b border-[color:var(--color-line)] gap-4 shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-cyan-500 overflow-hidden border-2 border-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.5)]">
                         {/* User Avatar Placeholder */}
                         <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-600" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-bold text-sm md:text-lg text-cyan-100">かんじGO！</span>
-                        <span className="text-[10px] md:text-xs text-cyan-400">どのソフトで あそぶ？</span>
+                        <span className="g-title text-base md:text-lg">かんじGO！</span>
+                        <span className="g-eyebrow !normal-case !tracking-normal !text-[11px]">どのソフトで あそぶ？</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 md:gap-4">
@@ -152,7 +152,7 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                                 alert(message);
                             }
                         }}
-                        className="bg-purple-600 hover:bg-purple-500 text-white text-xs md:text-sm font-bold py-1 px-3 md:py-2 md:px-4 rounded-full transition-colors flex items-center gap-1 md:gap-2"
+                        className="g-btn !min-h-[40px] !px-4 text-xs md:text-sm"
                     >
                         <span>📱</span>
                         <span className="hidden md:inline">アプリにする</span>
@@ -181,11 +181,11 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                                     y: isFocused ? -10 : 0
                                 }}
                                 className={`
-                            w-64 h-80 md:w-72 md:h-96 rounded-xl cursor-pointer relative z-10
-                            bg-gradient-to-b from-gray-800 to-gray-900
-                            border-2 ${isFocused ? 'border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'border-gray-700'}
+                            w-64 h-80 md:w-72 md:h-96 rounded-[var(--radius-card)] cursor-pointer relative z-10
+                            g-panel-solid
+                            ${isFocused ? 'shadow-[var(--shadow-glow-gold),var(--shadow-float)]' : ''}
                             flex flex-col items-center overflow-hidden
-                            transition-colors duration-300
+                            transition-shadow duration-300
                         `}
                             >
                                 {/* Background Image */}
@@ -204,8 +204,8 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                                     <div className="text-5xl md:text-6xl mb-4 filter drop-shadow-lg transform group-hover:scale-110 transition-transform">
                                         {cartridge.icon}
                                     </div>
-                                    <h3 className="text-lg md:text-xl font-bold text-white mb-2">{cartridge.title}</h3>
-                                    <p className="text-xs text-gray-300 font-mono bg-black/50 px-2 py-1 rounded">{cartridge.description}</p>
+                                    <h3 className="g-title text-xl md:text-2xl text-white mb-2">{cartridge.title}</h3>
+                                    <p className="g-chip !h-auto !py-1 !whitespace-normal text-xs">{cartridge.description}</p>
                                 </div>
 
                                 {/* Footer Status */}
@@ -219,7 +219,7 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: isFocused ? 1 : 0 }}
-                                className="text-cyan-400 font-mono text-xs md:text-sm tracking-widest absolute -bottom-8"
+                                className="g-chip g-chip-gold absolute -bottom-9"
                             >
                                 ▲ タップで スタート！
                             </motion.div>
@@ -229,7 +229,7 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
             </div>
 
             {/* Bottom Bar */}
-            <div className="p-3 md:p-5 flex justify-center items-center gap-2 border-t border-white/10 bg-[#1e293b]/50 backdrop-blur-md z-10">
+            <div className="p-3 md:p-5 flex justify-center items-center gap-2 border-t border-[color:var(--color-line)] z-10">
                 <span className="md:hidden text-[11px] text-cyan-300/80 font-bold animate-pulse">← よこに うごかすと ほかのソフトも あるよ →</span>
                 <span className="hidden md:inline text-xs text-gray-500">すきなソフトを えらんでね</span>
             </div>
@@ -240,11 +240,11 @@ const CartridgeSelect: React.FC<CartridgeSelectProps> = ({ onSelect }) => {
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="absolute inset-0 bg-[#0a192f] z-50 flex items-center justify-center px-4"
+                        className="absolute inset-0 bg-[color:var(--color-stage)] z-50 flex items-center justify-center px-4"
                     >
                         <div className="flex flex-col items-center text-center">
-                            <div className="w-12 h-12 md:w-16 md:h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
-                            <div className="text-cyan-400 text-lg md:text-xl font-bold tracking-widest animate-pulse">
+                            <div className="w-12 h-12 md:w-16 md:h-16 border-4 border-[color:var(--color-gold)] border-t-transparent rounded-full animate-spin mb-4" />
+                            <div className="g-title text-xl md:text-2xl animate-pulse">
                                 じゅんびちゅう…
                             </div>
                             <div className="text-gray-500 text-xs md:text-sm mt-2">
