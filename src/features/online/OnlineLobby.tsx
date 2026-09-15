@@ -88,7 +88,14 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBack }) => {
                 setError('あいてが みつかりませんでした。もういちど ためしてね。');
             } else {
                 console.error('Quick match failed:', err);
-                setError('つながりませんでした。でんぱの いいところで もういちど ためしてね。');
+                const msg = String((err as Error)?.message || '');
+                // "transport failure" = the realtime socket never connected
+                // (DNS/blocked/paused server), not a matchmaking problem.
+                setError(
+                    /transport/i.test(msg)
+                        ? 'たいせんサーバーに とどきませんでした。\nネットにつながっているか たしかめて、しばらくしてから もういちど おしてね。'
+                        : 'つながりませんでした。でんぱの いいところで もういちど ためしてね。'
+                );
             }
         } finally {
             setIsSearching(false);
