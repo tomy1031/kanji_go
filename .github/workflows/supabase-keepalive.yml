@@ -1,11 +1,18 @@
 # Keeps the free-tier Supabase project awake.
 #
-# Supabase pauses free projects after 7 days without API activity, and a paused
+# Supabase pauses free projects after 7 days without activity, and a paused
 # project's hostname disappears from DNS — the game then fails with
 # ERR_NAME_NOT_RESOLVED and online battles are impossible until someone
-# restores it by hand. A tiny authenticated request every 3 days counts as
-# activity and prevents the pause. The anon key below is the public,
-# client-side key that already ships in the app bundle.
+# restores it by hand. The relay is shared with nexmax_kanji_adventure.
+#
+# A bare request to /rest/v1/ stopped counting as activity (the project paused
+# on 2026-09-25 although the ping answered on 09-22), so this reads one row of
+# public.keepalive — a real database query. The table is read-only for the
+# anon role and holds nothing else. nexmax_kanji_adventure runs the same read
+# on other days, so one repo's schedule going quiet does not pause the project.
+#
+# The anon key below is the public, client-side key that already ships in the
+# app bundle.
 name: Supabase keep-alive
 
 on:
@@ -17,16 +24,17 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping the project's REST endpoint
+      - name: Read the keepalive row
         env:
           SUPABASE_URL: https://iyceaspukufevktabmvy.supabase.co
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5Y2Vhc3B1a3VmZXZrdGFibXZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2NjU3NTIsImV4cCI6MjA5OTI0MTc1Mn0.btg1ezB0lVHzsZFOf59W6CwN12xm6Adwh6f6BdWW9L4
         run: |
           set -e
-          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+          body=$(curl -sS --retry 3 --retry-delay 20 \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-            "$SUPABASE_URL/rest/v1/")
-          echo "REST responded with HTTP $code"
-          # Any HTTP answer means the project is awake; DNS/connection failure means it is paused.
-          test "$code" != "000"
+            "$SUPABASE_URL/rest/v1/keepalive?select=id&id=eq.1")
+          echo "keepalive answered: $body"
+          # The row must come back: anything else means the project is paused
+          # (no DNS) or the table is gone — restore it from the Supabase dashboard.
+          test "$body" = '[{"id":1}]'
